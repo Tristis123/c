@@ -40,7 +40,8 @@ $tunnelLog = "$env:TEMP\powercontrol_tunnel.txt"
 if (Test-Path $tunnelLog) { Remove-Item $tunnelLog }
 
 # Check SSH available
-$sshPath = (Get-Command ssh -ErrorAction SilentlyContinue)?.Source
+$sshCmd  = Get-Command ssh -ErrorAction SilentlyContinue
+$sshPath = if ($sshCmd) { $sshCmd.Source } else { $null }
 if (-not $sshPath) {
     Write-Host "`nWARNING: ssh not found. Install OpenSSH or use on same WiFi only." -ForegroundColor Yellow
     $publicUrl = $null
@@ -372,25 +373,31 @@ function Send-Raw($resp, $body, $type, $code = 200) {
 }
 
 # ── Request loop ─────────────────────────────────────────────────────────────
-while ($listener.IsListening) {
+# NOTE: avoid continue/break inside switch-inside-while (PS 5.1 bug) — use
+# a $stopServer flag and plain if/elseif blocks instead.
+$stopServer = $false
+while ($listener.IsListening -and -not $stopServer) {
     $context = $listener.GetContext()
-    $req  = $context.Request
-    $resp = $context.Response
-    $path = $req.Url.LocalPath
+    $req    = $context.Request
+    $resp   = $context.Response
+    $path   = $req.Url.LocalPath
     $method = $req.HttpMethod
 
-    # Static assets (no auth needed)
-    if ($method -eq "GET") {
-        switch ($path) {
-            "/manifest.json" { Send-Raw $resp $manifest "application/manifest+json"; continue }
-            "/icon.svg"      { Send-Raw $resp $iconSvg  "image/svg+xml";             continue }
-            "/sw.js"         { Send-Raw $resp $sw        "application/javascript";    continue }
-            "/pair"          { Send-Html $resp $pairPage;                             continue }
-        }
-    }
+    # ── Static assets (no auth) ──────────────────────────────────────────
+    if ($method -eq "GET" -and $path -eq "/manifest.json") {
+        Send-Raw $resp $manifest "application/manifest+json"
 
-    # Pair endpoint (POST /pair)
-    if ($method -eq "POST" -and $path -eq "/pair") {
+    } elseif ($method -eq "GET" -and $path -eq "/icon.svg") {
+        Send-Raw $resp $iconSvg "image/svg+xml"
+
+    } elseif ($method -eq "GET" -and $path -eq "/sw.js") {
+        Send-Raw $resp $sw "application/javascript"
+
+    } elseif ($method -eq "GET" -and $path -eq "/pair") {
+        Send-Html $resp $pairPage
+
+    # ── Pairing ──────────────────────────────────────────────────────────
+    } elseif ($method -eq "POST" -and $path -eq "/pair") {
         $reader = New-Object System.IO.StreamReader($req.InputStream)
         $body   = $reader.ReadToEnd()
         $params = @{}
@@ -406,67 +413,66 @@ while ($listener.IsListening) {
         } else {
             Send-Json $resp @{ ok = $false } 403
         }
-        continue
-    }
 
-    # Auth check endpoint (GET /auth)
-    if ($method -eq "GET" -and $path -eq "/auth") {
+    # ── Auth check ───────────────────────────────────────────────────────
+    } elseif ($method -eq "GET" -and $path -eq "/auth") {
         if (Is-ValidToken (Get-Token $req)) { Send-Json $resp @{ ok = $true } }
         else                                { Send-Json $resp @{ ok = $false } 403 }
-        continue
-    }
 
-    # Unpair (POST /unpair)
-    if ($method -eq "POST" -and $path -eq "/unpair") {
-        $tok = Get-Token $req
+    # ── Unpair ───────────────────────────────────────────────────────────
+    } elseif ($method -eq "POST" -and $path -eq "/unpair") {
+        $tok    = Get-Token $req
         $tokens = @(Load-Tokens) | Where-Object { $_ -ne $tok }
         Save-Tokens $tokens
         Write-Host "Device unpaired." -ForegroundColor Yellow
         Send-Json $resp @{ ok = $true }
-        continue
-    }
 
-    # Everything else requires a valid token
-    $tok = Get-Token $req
-    if (-not (Is-ValidToken $tok)) {
-        # No token → redirect to pair page
-        if ($method -eq "GET" -and $path -eq "/") {
-            $resp.StatusCode = 302
-            $resp.Headers.Add("Location", "/pair")
-            $resp.Close()
+    } else {
+        # ── Require valid token for everything below ──────────────────────
+        $tok = Get-Token $req
+        if (-not (Is-ValidToken $tok)) {
+            if ($method -eq "GET" -and $path -eq "/") {
+                $resp.StatusCode = 302
+                $resp.Headers.Add("Location", "/pair")
+                $resp.Close()
+            } else {
+                Send-Html $resp "Forbidden" 403
+            }
+
+        } elseif ($method -eq "GET" -and $path -eq "/") {
+            Send-Html $resp $controlPage
+
+        } elseif ($method -eq "POST" -and $path -eq "/action") {
+            $reader = New-Object System.IO.StreamReader($req.InputStream)
+            $body   = $reader.ReadToEnd()
+            $params = @{}
+            foreach ($p in $body.Split("&")) {
+                $kv = $p.Split("=", 2)
+                if ($kv.Count -eq 2) { $params[$kv[0]] = [uri]::UnescapeDataString($kv[1]) }
+            }
+            $cmd = $params["cmd"]
+            if ($cmd -eq "shutdown") {
+                Send-Html $resp ($doneHtml -f "Shutting down...")
+                Write-Host "CMD: shutdown" -ForegroundColor Red
+                shutdown /s /t 3
+                $stopServer = $true
+            } elseif ($cmd -eq "sleep") {
+                Send-Html $resp ($doneHtml -f "Going to sleep...")
+                Write-Host "CMD: sleep" -ForegroundColor Yellow
+                rundll32.exe powrprof.dll,SetSuspendState 0,1,0
+            } elseif ($cmd -eq "reboot") {
+                Send-Html $resp ($doneHtml -f "Rebooting...")
+                Write-Host "CMD: reboot" -ForegroundColor Blue
+                shutdown /r /t 3
+                $stopServer = $true
+            } else {
+                $resp.StatusCode = 400; $resp.Close()
+            }
+
         } else {
-            Send-Html $resp "Forbidden" 403
+            $resp.StatusCode = 404; $resp.Close()
         }
-        continue
     }
-
-    # Authenticated: serve control page
-    if ($method -eq "GET" -and $path -eq "/") {
-        Send-Html $resp $controlPage
-        continue
-    }
-
-    # Action
-    if ($method -eq "POST" -and $path -eq "/action") {
-        $reader = New-Object System.IO.StreamReader($req.InputStream)
-        $body   = $reader.ReadToEnd()
-        $params = @{}
-        foreach ($p in $body.Split("&")) {
-            $kv = $p.Split("=", 2)
-            if ($kv.Count -eq 2) { $params[$kv[0]] = [uri]::UnescapeDataString($kv[1]) }
-        }
-        $cmd = $params["cmd"]
-        switch ($cmd) {
-            "shutdown" { $msg = "Shutting down...";  Send-Html $resp ($doneHtml -f $msg); Write-Host "CMD: shutdown" -ForegroundColor Red;    shutdown /s /t 3; break }
-            "sleep"    { $msg = "Going to sleep..."; Send-Html $resp ($doneHtml -f $msg); Write-Host "CMD: sleep"    -ForegroundColor Yellow; rundll32.exe powrprof.dll,SetSuspendState 0,1,0 }
-            "reboot"   { $msg = "Rebooting...";      Send-Html $resp ($doneHtml -f $msg); Write-Host "CMD: reboot"   -ForegroundColor Blue;   shutdown /r /t 3; break }
-            default    { $resp.StatusCode = 400; $resp.Close() }
-        }
-        if ($cmd -eq "shutdown" -or $cmd -eq "reboot") { break }
-        continue
-    }
-
-    $resp.StatusCode = 404; $resp.Close()
 }
 
 $listener.Stop()
