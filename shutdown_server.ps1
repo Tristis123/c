@@ -31,9 +31,7 @@ try { $listener.Start() } catch {
 
 # ── SSH tunnel via localhost.run ─────────────────────────────────────────────
 $tunnelLog = Join-Path $env:TEMP "powercontrol_tunnel.txt"
-$tunnelErr = Join-Path $env:TEMP "powercontrol_tunnel_err.txt"
 if (Test-Path $tunnelLog) { Remove-Item $tunnelLog }
-if (Test-Path $tunnelErr) { Remove-Item $tunnelErr }
 
 $sshCmd  = Get-Command ssh -ErrorAction SilentlyContinue
 $sshPath = if ($sshCmd) { $sshCmd.Source } else { $null }
@@ -43,18 +41,17 @@ $publicUrl = $null
 
 if ($sshPath) {
     $sshArgs = "-o StrictHostKeyChecking=no -o ServerAliveInterval=20 -o LogLevel=QUIET -R 80:localhost:${port} nokey@localhost.run"
-    $sshProc = Start-Process ssh -ArgumentList $sshArgs `
-        -RedirectStandardOutput $tunnelLog -RedirectStandardError $tunnelErr `
-        -NoNewWindow -PassThru
+    $cmdArgs = "/c ssh $sshArgs > `"$tunnelLog`" 2>&1"
+    $sshProc = Start-Process cmd -ArgumentList $cmdArgs -NoNewWindow -PassThru
 
     Write-Host "Connecting tunnel..." -ForegroundColor Gray
     $deadline = (Get-Date).AddSeconds(20)
     while ((Get-Date) -lt $deadline -and -not $publicUrl) {
         Start-Sleep -Milliseconds 400
-        $txt = ""
-        if (Test-Path $tunnelLog) { $txt += (Get-Content $tunnelLog -Raw -ErrorAction SilentlyContinue) }
-        if (Test-Path $tunnelErr) { $txt += (Get-Content $tunnelErr -Raw -ErrorAction SilentlyContinue) }
-        if ($txt -match 'https?://[a-z0-9\-]+\.lhr\.life') { $publicUrl = $Matches[0] }
+        if (Test-Path $tunnelLog) {
+            $txt = Get-Content $tunnelLog -Raw -ErrorAction SilentlyContinue
+            if ($txt -match 'https?://[a-z0-9\-]+\.lhr\.life') { $publicUrl = $Matches[0] }
+        }
     }
     if (-not $publicUrl) {
         Write-Host "Tunnel timed out. Using local WiFi only." -ForegroundColor Yellow
