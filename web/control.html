@@ -564,6 +564,12 @@ async function fetchStats() {
       drawSpark('cpuTempSpark', H.cpuTemp,
         s.cpuTemp < 70 ? '#2dd6b0' : s.cpuTemp < 85 ? '#f5b53f' : '#f4685f',
         s.cpuTemp < 70 ? '#2dd6b020' : s.cpuTemp < 85 ? '#f5b53f20' : '#f4685f20');
+    } else if (document.getElementById('cpuTempVal').textContent === '—') {
+      document.getElementById('cpuTempVal').textContent = 'N/A';
+      document.getElementById('cpuTempBadge').style.display = 'inline-flex';
+      document.getElementById('cpuTempBadge').className = 'temp-badge ok';
+      document.getElementById('cpuTempBadge').style.cssText = 'display:inline-flex;background:rgba(255,255,255,.05);color:#55556a';
+      document.getElementById('cpuTempStatus').textContent = 'Install LibreHardwareMonitor for temps';
     }
     const ctb = document.getElementById('cpuThrottleBadge');
     ctb.style.display = s.cpuThrottle ? 'inline-flex' : 'none';

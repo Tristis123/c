@@ -100,16 +100,34 @@ function Get-SystemStats {
         $s.cpuThrottle = ($s.cpuClockMhz -lt [int]($s.cpuMaxMhz * 0.88))
     } catch { $s.cpu = 0 }
 
-    # ── CPU temperature (ACPI thermal zones) ─────────────────────────────────
+    # ── CPU temperature ──────────────────────────────────────────────────────
+    # Try LibreHardwareMonitor WMI first (most reliable, needs LHWM running)
     try {
-        $tzs = Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue
-        if ($tzs) {
-            $temps = @($tzs | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) })
-            $s.cpuTemps  = $temps
-            $s.cpuTemp   = ($temps | Measure-Object -Maximum).Maximum
-            $s.cpuTempOk = $s.cpuTemp -lt 90
+        $lhwm = Get-WmiObject -Namespace root/LibreHardwareMonitor -Class Sensor -ErrorAction SilentlyContinue |
+                Where-Object { $_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU|Core|Package' }
+        if ($lhwm) {
+            $temps = @($lhwm | ForEach-Object { [math]::Round($_.Value) })
+            $s.cpuTemp  = ($temps | Measure-Object -Maximum).Maximum
+            $s.cpuTemps = $temps
+            $s.cpuTempSrc = 'LHWM'
         }
     } catch {}
+
+    # Fallback: ACPI thermal zones (works on some boards, often reports package temp)
+    if (-not $s.cpuTemp) {
+        try {
+            $tzs = Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue
+            if ($tzs) {
+                $temps = @($tzs | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) } | Where-Object { $_ -gt 0 -and $_ -lt 120 })
+                if ($temps.Count -gt 0) {
+                    $s.cpuTemp    = ($temps | Measure-Object -Maximum).Maximum
+                    $s.cpuTemps   = $temps
+                    $s.cpuTempSrc = 'ACPI'
+                }
+            }
+        } catch {}
+    }
+    # If neither worked, cpuTemp stays null — UI will show N/A with an install hint
 
     # ── RAM + pagefile ────────────────────────────────────────────────────────
     try {
@@ -133,13 +151,24 @@ function Get-SystemStats {
     $nvSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
     if ($nvSmi) {
         try {
-            $raw = & nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,memory.used,memory.total,clocks.current.graphics,clocks.current.memory,power.draw,power.limit,clocks_throttle_reasons.active --format=csv,noheader,nounits 2>$null
+            # Query individual throttle reasons so we can distinguish real issues
+            # from benign idle/power-saving clock reduction
+            $raw = & nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,memory.used,memory.total,clocks.current.graphics,clocks.current.memory,power.draw,power.limit,clocks_throttle_reasons.hw_slowdown,clocks_throttle_reasons.hw_thermal_slowdown,clocks_throttle_reasons.sw_thermal_slowdown,clocks_throttle_reasons.hw_power_brake_slowdown --format=csv,noheader,nounits 2>$null
             $gpus = @()
             foreach ($line in ($raw -split "`n" | Where-Object { $_.Trim() })) {
                 $f = $line -split ',\s*'
                 if ($f.Count -lt 10) { continue }
                 $vramUsedMB  = [int]($f[4] -replace '[^\d]','')
                 $vramTotalMB = [int]($f[5] -replace '[^\d]','')
+                # Throttling = only true if a real thermal/power issue is active
+                # (NOT idle state or application-chosen clock reduction)
+                $realThrottle = $false
+                if ($f.Count -ge 14) {
+                    $realThrottle = ($f[10].Trim() -eq 'Active') -or  # HW slowdown
+                                    ($f[11].Trim() -eq 'Active') -or  # HW thermal
+                                    ($f[12].Trim() -eq 'Active') -or  # SW thermal
+                                    ($f[13].Trim() -eq 'Active')      # Power brake
+                }
                 $gpus += @{
                     index        = [int]($f[0] -replace '[^\d]','')
                     name         = $f[1].Trim()
@@ -154,7 +183,7 @@ function Get-SystemStats {
                     memClockMhz  = [int]($f[7] -replace '[^\d]','')
                     powerDraw    = if ($f[8] -match '[\d.]+') { [math]::Round([float]($f[8] -replace '[^\d.]',''), 1) } else { $null }
                     powerLimit   = if ($f[9] -match '[\d.]+') { [math]::Round([float]($f[9] -replace '[^\d.]',''), 1) } else { $null }
-                    throttling   = ($f.Count -gt 10 -and $f[10].Trim() -notin @('0x0000000000000000','[N/A]'))
+                    throttling   = $realThrottle
                     tempOk       = [int]($f[2] -replace '[^\d]','') -lt 85
                     vendor       = 'NVIDIA'
                 }
