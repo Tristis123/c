@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#7c3aed">
+<title>Power Control — Connect</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0f0f1a;--surface:#1a1a2e;--border:#2a2a45;--purple:#7c3aed;--purple2:#a78bfa;--text:#f1f5f9;--muted:#64748b}
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100dvh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:2rem;gap:2rem}
+  body::before{content:"";position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:500px;height:500px;
+    background:radial-gradient(circle,#7c3aed22 0%,transparent 70%);pointer-events:none}
+  .ring{width:64px;height:64px;border-radius:50%;border:3px solid var(--purple);display:flex;
+    align-items:center;justify-content:center;
+    box-shadow:0 0 24px #7c3aed55;animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 24px #7c3aed55}50%{box-shadow:0 0 44px #7c3aed99}}
+  .ring svg{width:32px;height:32px}
+  h1{font-size:1.4rem;font-weight:700}
+  .sub{color:var(--muted);font-size:.88rem;text-align:center}
+  .qr-wrap{background:#fff;border-radius:16px;padding:16px;
+    box-shadow:0 0 40px #7c3aed33}
+  #qrcode{width:220px;height:220px}
+  .url{font-size:.82rem;color:var(--muted);font-family:monospace;
+    background:var(--surface);border:1.5px solid var(--border);
+    border-radius:10px;padding:.5rem 1rem;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="ring">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+    <path d="M12 2v10" stroke="#a78bfa"/>
+    <path d="M18.4 6.6a9 9 0 1 1-12.8 0" stroke="#7c3aed"/>
+  </svg>
+</div>
+<h1>Power Control</h1>
+<p class="sub">Scan with your phone to connect</p>
+<div class="qr-wrap">
+  <div id="qrcode"></div>
+</div>
+<span class="url" id="url-display"></span>
+<script src="/qrcode.min.js"></script>
+<script>
+  var url = window.location.origin;
+  document.getElementById('url-display').textContent = url;
+  new QRCode(document.getElementById('qrcode'), {
+    text: url,
+    width: 220,
+    height: 220,
+    colorDark: '#0f0f1a',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Power Control">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Power Control</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f0f1a; --surface:#1a1a2e; --border:#2a2a45;
+    --purple:#7c3aed; --purple2:#a78bfa;
+    --red:#dc2626; --red2:#f87171;
+    --blue:#2563eb; --blue2:#60a5fa;
+    --green2:#4ade80;
+    --amber:#d97706; --amber2:#fbbf24;
+    --teal2:#2dd4bf;
+    --text:#f1f5f9; --muted:#64748b;
+  }
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100dvh;display:flex;flex-direction:column;
+    align-items:center;padding:2rem 1.5rem 3rem;gap:2rem;overflow-y:auto}
+  body::before{content:"";position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:600px;height:600px;
+    background:radial-gradient(circle,#7c3aed22 0%,transparent 70%);
+    pointer-events:none;z-index:0}
+
+  /* ── Header ── */
+  header{display:flex;flex-direction:column;align-items:center;gap:.75rem;text-align:center}
+  .ring{width:72px;height:72px;border-radius:50%;border:3px solid var(--purple);display:flex;
+    align-items:center;justify-content:center;
+    box-shadow:0 0 24px #7c3aed55,inset 0 0 12px #7c3aed22;
+    animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 24px #7c3aed55,inset 0 0 12px #7c3aed22}
+    50%{box-shadow:0 0 44px #7c3aed99,inset 0 0 20px #7c3aed44}}
+  .ring svg{width:36px;height:36px}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-.02em}
+  .host{font-size:.8rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+
+  /* ── Offline banner ── */
+  .offline-banner{display:none;width:100%;max-width:340px;
+    background:#dc262618;border:1.5px solid #dc262655;border-radius:10px;
+    padding:.6rem 1rem;text-align:center;font-size:.82rem;color:var(--red2)}
+  .offline-banner.show{display:block}
+
+  /* ── Section ── */
+  .section{width:100%;max-width:340px}
+  .section-title{font-size:.7rem;font-weight:600;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--muted);margin-bottom:.65rem;
+    display:flex;align-items:center;justify-content:space-between}
+  .title-right{display:flex;align-items:center;gap:.55rem}
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green2);
+    box-shadow:0 0 6px var(--green2);animation:blink 2s ease-in-out infinite;flex-shrink:0;
+    transition:background .3s,box-shadow .3s}
+  .live-dot.offline{background:var(--red2);box-shadow:0 0 6px var(--red2);animation:none}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  .gear-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    display:flex;align-items:center;padding:2px;border-radius:6px;
+    transition:color .2s}
+  .gear-btn:hover{color:var(--text)}
+  .gear-btn svg{width:14px;height:14px}
+
+  /* ── Stats grid ── */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .stat-card{background:var(--surface);border:1.5px solid var(--border);
+    border-radius:14px;padding:.9rem .85rem;display:flex;flex-direction:column;gap:.5rem}
+  .stat-label{font-size:.68rem;color:var(--muted);font-weight:600;
+    text-transform:uppercase;letter-spacing:.05em}
+  .stat-val{font-size:1.3rem;font-weight:700;line-height:1}
+  .stat-sub{font-size:.68rem;color:var(--muted)}
+  .bar{height:4px;border-radius:2px;background:#ffffff10;overflow:hidden;margin-top:2px}
+  .bar-fill{height:100%;border-radius:2px;transition:width .7s ease;width:0%}
+  .cpu-fill{background:var(--purple2)}
+  .ram-fill{background:var(--blue2)}
+  .disk-fill{background:var(--green2)}
+  .uptime-val{font-size:.95rem;font-weight:700;line-height:1.35;color:var(--teal2)}
+  .net-row{display:flex;align-items:baseline;gap:.35rem}
+  .net-arrow{font-size:.75rem;font-weight:700;color:var(--muted)}
+  .net-arrow.up{color:var(--purple2)}
+  .net-arrow.down{color:var(--blue2)}
+  .net-val{font-size:.95rem;font-weight:700}
+
+  /* ── Power buttons ── */
+  .power-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%;max-width:340px}
+  .wide{grid-column:1/-1}
+  .btn{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1.4rem 1rem;
+    border:1.5px solid var(--border);border-radius:18px;background:var(--surface);
+    color:var(--text);font-size:.9rem;font-weight:600;cursor:pointer;
+    transition:transform .12s,box-shadow .2s,border-color .2s,background .2s;
+    -webkit-tap-highlight-color:transparent;user-select:none}
+  .btn:active{transform:scale(.94)}
+  .btn svg{width:32px;height:32px}
+  .btn-shutdown svg path{stroke:#f87171}
+  .btn-sleep svg path{stroke:#fbbf24}
+  .btn-reboot svg polyline,.btn-reboot svg path{stroke:#60a5fa}
+  .btn-shutdown{border-color:#dc262655}
+  .btn-sleep{border-color:#d9770655}
+  .btn-reboot{border-color:#2563eb55}
+  .btn-shutdown:hover{background:#dc262612;border-color:#dc2626;box-shadow:0 0 18px #dc262644}
+  .btn-sleep:hover{background:#d9770612;border-color:#d97706;box-shadow:0 0 18px #d9770644}
+  .btn-reboot:hover{background:#2563eb12;border-color:#2563eb;box-shadow:0 0 18px #2563eb44}
+
+  /* ── Apps ── */
+  .apps-list{display:flex;flex-direction:column;gap:.4rem;max-height:220px;overflow-y:auto}
+  .app-item{display:flex;align-items:center;gap:.65rem;background:var(--surface);
+    border:1.5px solid var(--border);border-radius:10px;padding:.6rem .8rem;overflow:hidden}
+  .app-dot{width:7px;height:7px;border-radius:50%;background:var(--purple2);flex-shrink:0}
+  .app-title{font-size:.8rem;color:var(--text);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;flex:1}
+  .app-name{font-size:.68rem;color:var(--muted);flex-shrink:0;margin-left:.3rem}
+  .no-apps{color:var(--muted);font-size:.8rem;text-align:center;padding:.8rem}
+
+  footer{font-size:.75rem;color:var(--muted);display:flex;gap:1rem;align-items:center}
+  .unpair{background:none;border:none;color:var(--muted);font-size:.75rem;
+    cursor:pointer;text-decoration:underline}
+
+  /* ── Confirm modal ── */
+  .modal{display:none;position:fixed;inset:0;background:#000a;backdrop-filter:blur(6px);
+    align-items:center;justify-content:center;z-index:10}
+  .modal.open{display:flex}
+  .modal-box{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;
+    padding:2rem 1.5rem;max-width:300px;width:90%;text-align:center;
+    display:flex;flex-direction:column;gap:1.2rem}
+  .modal-box h2{font-size:1.1rem}
+  .modal-box p{font-size:.88rem;color:var(--muted)}
+  .modal-actions{display:flex;gap:.75rem}
+  .modal-actions button{flex:1;padding:.75rem;border-radius:12px;
+    border:1.5px solid var(--border);font-size:.9rem;font-weight:600;
+    cursor:pointer;background:var(--bg);color:var(--text)}
+  .modal-actions .confirm{color:#fff}
+
+  /* ── Settings bottom sheet ── */
+  .settings-overlay{display:none;position:fixed;inset:0;background:#0008;z-index:20;
+    transition:opacity .25s}
+  .settings-overlay.open{display:block}
+  .settings-panel{position:fixed;bottom:0;left:0;right:0;
+    background:var(--surface);border-top:1.5px solid var(--border);
+    border-radius:20px 20px 0 0;padding:1.25rem 1.5rem 2rem;z-index:21;
+    transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+    max-height:80dvh;overflow-y:auto}
+  .settings-panel.open{transform:translateY(0)}
+  .settings-handle{width:36px;height:4px;border-radius:2px;
+    background:var(--border);margin:0 auto .9rem}
+  .settings-header{display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:1.1rem}
+  .settings-header span{font-size:1rem;font-weight:700}
+  .close-btn{background:none;border:none;color:var(--muted);font-size:1.4rem;
+    cursor:pointer;line-height:1;padding:0 .2rem}
+  .settings-hint{font-size:.75rem;color:var(--muted);margin-bottom:.9rem}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;
+    padding:.75rem 0;border-bottom:1px solid var(--border)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-lbl{font-size:.9rem;font-weight:500}
+  .toggle-desc{font-size:.72rem;color:var(--muted);margin-top:1px}
+  .toggle{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+  .toggle input{opacity:0;width:0;height:0;position:absolute}
+  .tslider{position:absolute;inset:0;background:#2a2a45;border-radius:24px;
+    transition:.2s;cursor:pointer}
+  .tslider::before{content:"";position:absolute;height:18px;width:18px;
+    left:3px;top:3px;background:#64748b;border-radius:50%;transition:.2s}
+  .toggle input:checked + .tslider{background:var(--purple)}
+  .toggle input:checked + .tslider::before{transform:translateX(20px);background:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ring">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2v10" stroke="#a78bfa"/>
+      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" stroke="#7c3aed"/>
+    </svg>
+  </div>
+  <h1>Power Control</h1>
+  <span class="host" id="hostname">Loading...</span>
+</header>
+
+<div class="offline-banner" id="offline-banner">Service offline — retrying...</div>
+
+<div class="section">
+  <div class="section-title">
+    <span>Live Stats</span>
+    <div class="title-right">
+      <span class="live-dot" id="live-dot"></span>
+      <button class="gear-btn" onclick="openSettings()" title="Customize widgets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="stats-grid" id="stats-grid">
+
+    <div class="stat-card" id="w-cpu">
+      <span class="stat-label">CPU</span>
+      <span class="stat-val" id="s-cpu">—</span>
+      <div class="bar"><div class="bar-fill cpu-fill" id="b-cpu"></div></div>
+    </div>
+
+    <div class="stat-card" id="w-ram">
+      <span class="stat-label">RAM</span>
+      <span class="stat-val" id="s-ram">—</span>
+      <div class="bar"><div class="bar-fill ram-fill" id="b-ram"></div></div>
+      <span class="stat-sub" id="s-ram-sub"></span>
+    </div>
+
+    <div class="stat-card" id="w-disk">
+      <span class="stat-label">Disk C:</span>
+      <span class="stat-val" id="s-disk">—</span>
+      <div class="bar"><div class="bar-fill disk-fill" id="b-disk"></div></div>
+      <span class="stat-sub" id="s-disk-sub"></span>
+    </div>
+
+    <div class="stat-card" id="w-uptime">
+      <span class="stat-label">Uptime</span>
+      <span class="uptime-val" id="s-uptime">—</span>
+    </div>
+
+    <div class="stat-card" id="w-net">
+      <span class="stat-label">Network</span>
+      <div class="net-row">
+        <span class="net-arrow down">↓</span>
+        <span class="net-val" id="s-net-dl">—</span>
+      </div>
+      <div class="net-row">
+        <span class="net-arrow up">↑</span>
+        <span class="net-val" id="s-net-ul">—</span>
+      </div>
+    </div>
+
+    <div class="stat-card" id="w-procs">
+      <span class="stat-label">Processes</span>
+      <span class="stat-val" id="s-procs">—</span>
+      <span class="stat-sub">running</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="power-grid">
+  <button class="btn btn-shutdown wide" onclick="ask('shutdown','Shut Down','Really shut down the PC?','#dc2626')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>
+    </svg>
+    Shut Down
+  </button>
+  <button class="btn btn-sleep" onclick="ask('sleep','Sleep','Put the PC to sleep?','#d97706')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    Sleep
+  </button>
+  <button class="btn btn-reboot" onclick="ask('reboot','Reboot','Really reboot?','#2563eb')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>
+    </svg>
+    Reboot
+  </button>
+</div>
+
+<div class="section">
+  <div class="section-title">Open Apps</div>
+  <div class="apps-list" id="apps-list">
+    <div class="no-apps">Loading...</div>
+  </div>
+</div>
+
+<footer>
+  <span>Power Control</span>
+  <button class="unpair" onclick="unpair()">Unpair this device</button>
+</footer>
+
+<!-- Confirm modal -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h2 id="modal-title"></h2>
+    <p id="modal-body"></p>
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="confirm" id="modal-confirm" onclick="doAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings bottom sheet -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettings()"></div>
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-handle"></div>
+  <div class="settings-header">
+    <span>Customize Stats</span>
+    <button class="close-btn" onclick="closeSettings()">&#x2715;</button>
+  </div>
+  <p class="settings-hint">Choose which cards appear in the Live Stats panel.</p>
+  <div id="toggles-container"></div>
+</div>
+
+<script>
+  var token = localStorage.getItem('pc_token') || '';
+  var pendingCmd = null;
+  var offlineCount = 0;
+
+  // ── Widget registry ───────────────────────────────────────────────────────
+  var WIDGETS = [
+    { id: 'cpu',    label: 'CPU',         desc: 'Processor load percentage',    defaultOn: true  },
+    { id: 'ram',    label: 'RAM',         desc: 'Memory usage and GB used',      defaultOn: true  },
+    { id: 'disk',   label: 'Disk C:',     desc: 'Storage usage and free space',  defaultOn: true  },
+    { id: 'uptime', label: 'Uptime',      desc: 'Time since last boot',          defaultOn: true  },
+    { id: 'net',    label: 'Network',     desc: 'Download / upload speed',       defaultOn: false },
+    { id: 'procs',  label: 'Processes',   desc: 'Number of running processes',   defaultOn: false },
+  ];
+
+  function loadEnabled() {
+    try {
+      var s = JSON.parse(localStorage.getItem('pc_widgets') || 'null');
+      if (Array.isArray(s)) return s;
+    } catch(e) {}
+    return WIDGETS.filter(function(w){ return w.defaultOn; }).map(function(w){ return w.id; });
+  }
+
+  function saveEnabled() {
+    var enabled = WIDGETS.filter(function(w){
+      var el = document.getElementById('tog-' + w.id);
+      return el && el.checked;
+    }).map(function(w){ return w.id; });
+    localStorage.setItem('pc_widgets', JSON.stringify(enabled));
+    applyEnabled(enabled);
+  }
+
+  function applyEnabled(enabled) {
+    WIDGETS.forEach(function(w) {
+      var card = document.getElementById('w-' + w.id);
+      if (card) card.style.display = enabled.indexOf(w.id) !== -1 ? '' : 'none';
+    });
+  }
+
+  // Build toggle rows
+  (function buildToggles() {
+    var enabled = loadEnabled();
+    var container = document.getElementById('toggles-container');
+    WIDGETS.forEach(function(w) {
+      var row = document.createElement('label');
+      row.className = 'toggle-row';
+      row.innerHTML =
+        '<div><div class="toggle-lbl">' + w.label + '</div>' +
+        '<div class="toggle-desc">' + w.desc + '</div></div>' +
+        '<span class="toggle"><input type="checkbox" id="tog-' + w.id + '" onchange="saveEnabled()">' +
+        '<span class="tslider"></span></span>';
+      container.appendChild(row);
+      document.getElementById('tog-' + w.id).checked = enabled.indexOf(w.id) !== -1;
+    });
+    applyEnabled(enabled);
+  })();
+
+  // ── Settings panel ────────────────────────────────────────────────────────
+  function openSettings() {
+    document.getElementById('settings-overlay').classList.add('open');
+    document.getElementById('settings-panel').classList.add('open');
+  }
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+    document.getElementById('settings-panel').classList.remove('open');
+  }
+
+  // ── Offline / online ──────────────────────────────────────────────────────
+  function setOffline() {
+    document.getElementById('offline-banner').classList.add('show');
+    document.getElementById('live-dot').classList.add('offline');
+  }
+  function setOnline() {
+    document.getElementById('offline-banner').classList.remove('show');
+    document.getElementById('live-dot').classList.remove('offline');
+  }
+
+  // ── Auth check ────────────────────────────────────────────────────────────
+  fetch('/info', { headers: { 'X-Token': token } })
+    .then(function(r) {
+      if (r.status === 403) { localStorage.removeItem('pc_token'); location.href = '/pair'; return null; }
+      return r.ok ? r.json() : Promise.reject('offline');
+    })
+    .then(function(j) {
+      if (!j) return;
+      document.getElementById('hostname').textContent = j.host;
+    })
+    .catch(function() {
+      document.getElementById('hostname').textContent = 'offline';
+      setOffline();
+    });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function fmtNet(kbps) {
+    if (kbps == null) return '—';
+    if (kbps >= 1024) return (kbps / 1024).toFixed(1) + ' MB/s';
+    return kbps.toFixed(1) + ' KB/s';
+  }
+
+  // ── Stats polling ─────────────────────────────────────────────────────────
+  function updateStats() {
+    fetch('/stats', { headers: { 'X-Token': token } })
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d) {
+        offlineCount = 0;
+        setOnline();
+
+        document.getElementById('s-cpu').textContent = d.cpu + '%';
+        document.getElementById('b-cpu').style.width = Math.min(d.cpu, 100) + '%';
+
+        document.getElementById('s-ram').textContent = d.ram.pct + '%';
+        document.getElementById('b-ram').style.width = Math.min(d.ram.pct, 100) + '%';
+        document.getElementById('s-ram-sub').textContent = d.ram.used + ' / ' + d.ram.total + ' GB';
+
+        document.getElementById('s-disk').textContent = d.disk.pct + '%';
+        document.getElementById('b-disk').style.width = Math.min(d.disk.pct, 100) + '%';
+        document.getElementById('s-disk-sub').textContent = d.disk.free + ' GB free';
+
+        document.getElementById('s-uptime').textContent = d.uptime;
+
+        if (d.net) {
+          document.getElementById('s-net-dl').textContent = fmtNet(d.net.dlKBps);
+          document.getElementById('s-net-ul').textContent = fmtNet(d.net.ulKBps);
+        }
+
+        if (d.procs != null) {
+          document.getElementById('s-procs').textContent = d.procs;
+        }
+
+        var raw  = d.apps;
+        var apps = raw == null ? [] : (Array.isArray(raw) ? raw : [raw]);
+        var list = document.getElementById('apps-list');
+        if (apps.length === 0) {
+          list.innerHTML = '<div class="no-apps">No open windows</div>';
+        } else {
+          list.innerHTML = apps.map(function(a) {
+            return '<div class="app-item">' +
+              '<span class="app-dot"></span>' +
+              '<span class="app-title">' + esc(a.title) + '</span>' +
+              '<span class="app-name">' + esc(a.name) + '</span>' +
+              '</div>';
+          }).join('');
+        }
+      })
+      .catch(function() {
+        offlineCount++;
+        if (offlineCount >= 2) setOffline();
+      });
+  }
+
+  updateStats();
+  setInterval(updateStats, 3000);
+
+  // ── Power actions ─────────────────────────────────────────────────────────
+  function ask(cmd, title, body, color) {
+    pendingCmd = cmd;
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent = body;
+    var btn = document.getElementById('modal-confirm');
+    btn.style.background = color;
+    btn.style.borderColor = color;
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    pendingCmd = null;
+  }
+  function doAction() {
+    if (!pendingCmd) return;
+    var cmd = pendingCmd; closeModal();
+    fetch('/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Token': token },
+      body: 'cmd=' + cmd
+    }).then(function(r) {
+      if (r.status === 403) { localStorage.removeItem('pc_token'); location.reload(); }
+    });
+  }
+  function unpair() {
+    if (!confirm('Unpair this device?')) return;
+    fetch('/unpair', { method: 'POST', headers: { 'X-Token': token } })
+      .then(function() { localStorage.removeItem('pc_token'); location.href = '/pair'; });
+  }
+
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
+</script>
+</body>
+</html>
