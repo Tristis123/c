@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Power Control">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Power Control</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f0f1a; --surface:#1a1a2e; --border:#2a2a45;
+    --purple:#7c3aed; --purple2:#a78bfa;
+    --red:#dc2626; --red2:#f87171;
+    --blue:#2563eb; --blue2:#60a5fa;
+    --amber:#d97706; --amber2:#fbbf24;
+    --text:#f1f5f9; --muted:#64748b;
+  }
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100dvh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:2rem 1.5rem;gap:2.5rem}
+  body::before{content:"";position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:600px;height:600px;
+    background:radial-gradient(circle,#7c3aed22 0%,transparent 70%);pointer-events:none}
+  header{display:flex;flex-direction:column;align-items:center;gap:.75rem;text-align:center}
+  .ring{width:72px;height:72px;border-radius:50%;border:3px solid var(--purple);display:flex;
+    align-items:center;justify-content:center;
+    box-shadow:0 0 24px #7c3aed55,inset 0 0 12px #7c3aed22;
+    animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 24px #7c3aed55,inset 0 0 12px #7c3aed22}
+    50%{box-shadow:0 0 44px #7c3aed99,inset 0 0 20px #7c3aed44}
+  }
+  .ring svg{width:36px;height:36px}
+  h1{font-size:1.4rem;font-weight:700;letter-spacing:-.02em}
+  .host{font-size:.8rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%;max-width:340px}
+  .wide{grid-column:1/-1}
+  .btn{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1.4rem 1rem;
+    border:1.5px solid var(--border);border-radius:18px;background:var(--surface);
+    color:var(--text);font-size:.9rem;font-weight:600;cursor:pointer;
+    transition:transform .12s,box-shadow .2s,border-color .2s,background .2s;
+    -webkit-tap-highlight-color:transparent;user-select:none}
+  .btn:active{transform:scale(.94)}
+  .btn svg{width:32px;height:32px}
+  .btn-shutdown svg path,.btn-shutdown svg circle{stroke:#f87171}
+  .btn-sleep svg path{stroke:#fbbf24}
+  .btn-reboot svg polyline,.btn-reboot svg path{stroke:#60a5fa}
+  .btn-shutdown{border-color:#dc262655}
+  .btn-sleep{border-color:#d9770655}
+  .btn-reboot{border-color:#2563eb55}
+  .btn-shutdown:hover{background:#dc262612;border-color:#dc2626;box-shadow:0 0 18px #dc262644}
+  .btn-sleep:hover{background:#d9770612;border-color:#d97706;box-shadow:0 0 18px #d9770644}
+  .btn-reboot:hover{background:#2563eb12;border-color:#2563eb;box-shadow:0 0 18px #2563eb44}
+  footer{font-size:.75rem;color:var(--muted);display:flex;gap:1rem;align-items:center}
+  .unpair{background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;text-decoration:underline}
+  .modal{display:none;position:fixed;inset:0;background:#000a;backdrop-filter:blur(6px);
+    align-items:center;justify-content:center;z-index:10}
+  .modal.open{display:flex}
+  .modal-box{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;
+    padding:2rem 1.5rem;max-width:300px;width:90%;text-align:center;
+    display:flex;flex-direction:column;gap:1.2rem}
+  .modal-box h2{font-size:1.1rem}
+  .modal-box p{font-size:.88rem;color:var(--muted)}
+  .modal-actions{display:flex;gap:.75rem}
+  .modal-actions button{flex:1;padding:.75rem;border-radius:12px;border:1.5px solid var(--border);
+    font-size:.9rem;font-weight:600;cursor:pointer;background:var(--bg);color:var(--text)}
+  .modal-actions .confirm{color:#fff}
+</style>
+</head>
+<body>
+<header>
+  <div class="ring">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2v10" stroke="#a78bfa"/>
+      <path d="M18.4 6.6a9 9 0 1 1-12.8 0" stroke="#7c3aed"/>
+    </svg>
+  </div>
+  <h1>Power Control</h1>
+  <span class="host" id="hostname">Loading...</span>
+</header>
+
+<div class="grid">
+  <button class="btn btn-shutdown wide" onclick="ask('shutdown','Shut Down','Really shut down the PC?','#dc2626')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>
+    </svg>
+    Shut Down
+  </button>
+  <button class="btn btn-sleep" onclick="ask('sleep','Sleep','Put the PC to sleep?','#d97706')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    Sleep
+  </button>
+  <button class="btn btn-reboot" onclick="ask('reboot','Reboot','Really reboot?','#2563eb')">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10"/>
+    </svg>
+    Reboot
+  </button>
+</div>
+
+<footer>
+  <span>Power Control</span>
+  <button class="unpair" onclick="unpair()">Unpair this device</button>
+</footer>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h2 id="modal-title"></h2>
+    <p id="modal-body"></p>
+    <div class="modal-actions">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="confirm" id="modal-confirm" onclick="doAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('pc_token') || '';
+  let pendingCmd = null;
+
+  // Load hostname
+  fetch('/info', { headers: { 'X-Token': token } })
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => { document.getElementById('hostname').textContent = j.host; })
+    .catch(() => { localStorage.removeItem('pc_token'); location.href = '/pair'; });
+
+  function ask(cmd, title, body, color) {
+    pendingCmd = cmd;
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent = body;
+    var btn = document.getElementById('modal-confirm');
+    btn.style.background = color;
+    btn.style.borderColor = color;
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); pendingCmd = null; }
+  function doAction() {
+    if (!pendingCmd) return;
+    var cmd = pendingCmd; closeModal();
+    fetch('/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Token': token },
+      body: 'cmd=' + cmd
+    }).then(function(r) { if (r.status === 403) { localStorage.removeItem('pc_token'); location.reload(); } });
+  }
+  function unpair() {
+    if (!confirm('Unpair this device?')) return;
+    fetch('/unpair', { method: 'POST', headers: { 'X-Token': token } })
+      .then(function() { localStorage.removeItem('pc_token'); location.href = '/pair'; });
+  }
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function() {});
+</script>
+</body>
+</html>

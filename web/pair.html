@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<title>Pair Device</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0f0f1a;--surface:#1a1a2e;--border:#2a2a45;--purple:#7c3aed;--purple2:#a78bfa;--text:#f1f5f9;--muted:#64748b}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:2rem}
+  body::before{content:"";position:fixed;top:-20%;left:50%;transform:translateX(-50%);
+    width:500px;height:500px;background:radial-gradient(circle,#7c3aed22 0%,transparent 70%);pointer-events:none}
+  .ring{width:72px;height:72px;border-radius:50%;border:3px solid var(--purple);display:flex;align-items:center;
+    justify-content:center;box-shadow:0 0 24px #7c3aed55;animation:pulse 3s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 24px #7c3aed55}50%{box-shadow:0 0 44px #7c3aed99}}
+  .ring svg{width:36px;height:36px}
+  h1{font-size:1.4rem;font-weight:700}
+  .sub{color:var(--muted);font-size:.88rem;text-align:center;max-width:260px}
+  .card{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;
+    padding:1.8rem 1.5rem;display:flex;flex-direction:column;gap:1.2rem;align-items:center;width:100%;max-width:320px}
+  label{font-size:.8rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;align-self:flex-start}
+  .digits{display:flex;gap:.5rem;justify-content:center}
+  .digits input{width:46px;height:58px;text-align:center;font-size:1.6rem;font-weight:700;
+    background:#0f0f1a;color:var(--text);border:1.5px solid var(--border);border-radius:12px;
+    outline:none;caret-color:var(--purple2);transition:border-color .2s}
+  .digits input:focus{border-color:var(--purple)}
+  .err{color:#f87171;font-size:.82rem;min-height:1.1em}
+  button{width:100%;padding:.9rem;border-radius:14px;border:none;background:var(--purple);
+    color:#fff;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity .15s}
+  button:active{opacity:.8}
+</style>
+</head>
+<body>
+<div class="ring">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+    <path d="M12 2v10" stroke="#a78bfa"/>
+    <path d="M18.4 6.6a9 9 0 1 1-12.8 0" stroke="#7c3aed"/>
+  </svg>
+</div>
+<h1>Pair This Device</h1>
+<p class="sub">Enter the 6-digit code shown on your PC.</p>
+<div class="card">
+  <label>Pairing Code</label>
+  <div class="digits" id="digits">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+    <input maxlength="1" inputmode="numeric" pattern="[0-9]">
+  </div>
+  <p class="err" id="err"></p>
+  <button onclick="submit()">Pair Device</button>
+</div>
+<script>
+  const inputs = [...document.querySelectorAll('.digits input')];
+  inputs[0].focus();
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(-1);
+      if (inp.value && i < 5) inputs[i + 1].focus();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i - 1].focus();
+    });
+    inp.addEventListener('paste', e => {
+      e.preventDefault();
+      const d = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+      d.split('').forEach((c, j) => { if (inputs[j]) inputs[j].value = c; });
+      if (d.length < 6) inputs[Math.min(d.length, 5)].focus();
+    });
+  });
+  async function submit() {
+    const code = inputs.map(i => i.value).join('');
+    if (code.length < 6) { document.getElementById('err').textContent = 'Enter all 6 digits.'; return; }
+    const r = await fetch('/pair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'code=' + code
+    });
+    const j = await r.json();
+    if (j.ok) { localStorage.setItem('pc_token', j.token); location.href = '/'; }
+    else { document.getElementById('err').textContent = 'Wrong code. Try again.'; inputs.forEach(i => i.value = ''); inputs[0].focus(); }
+  }
+</script>
+</body>
+</html>
