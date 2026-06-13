@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#8b5cf6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Power Control">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<title>Power Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #050507;
+    font-family: 'Manrope', -apple-system, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  :root {
+    --accent: #8b5cf6;
+    --accent-bright: #a78bfa;
+    --accent-glow: rgba(139, 92, 246, 0.3);
+  }
+
+  /* ───── Root / scroll ───── */
+  .pc-root {
+    position: relative; height: 100%; width: 100%; overflow: hidden;
+    background: #0a0a11; color: #e7e7ef;
+    font-variant-numeric: tabular-nums;
+  }
+  .pc-scroll {
+    position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+    padding: 0 20px 24px;
+  }
+  .pc-scroll::-webkit-scrollbar { width: 0; }
+  .pc-aura {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+    width: 360px; height: 320px; pointer-events: none; z-index: 0;
+    background: radial-gradient(circle at 50% 28%, var(--accent-glow), transparent 62%);
+    opacity: .55; filter: blur(14px);
+  }
+
+  /* ───── Hero ───── */
+  .pc-hero {
+    position: relative; z-index: 1;
+    padding-top: 74px; display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+  }
+  .pc-title { font-size: 30px; font-weight: 800; margin: 22px 0 9px; letter-spacing: -.6px; color: #fff; }
+  .pc-device { font-size: 13px; letter-spacing: 3.5px; color: #66667c; font-weight: 700; }
+  .pwr { touch-action: manipulation; }
+
+  /* ───── Section ───── */
+  .pc-section { position: relative; z-index: 1; margin-top: 32px; }
+  .pc-section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 15px; padding: 0 2px;
+  }
+  .pc-section-label { font-size: 13px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #75758c; }
+  .pc-section-tools { display: flex; align-items: center; gap: 12px; }
+  .pc-dot { width: 9px; height: 9px; border-radius: 50%; background: #34343f; transition: .3s; }
+  .pc-dot.live { background: #2dd6b0; box-shadow: 0 0 10px #2dd6b0; animation: pcblink 2.4s infinite; }
+  .pc-gear { background: none; border: none; color: #66667c; padding: 4px; cursor: pointer; display: flex; transition: .15s; }
+  .pc-gear:hover { color: #b0b0c6; transform: rotate(30deg); }
+
+  /* ───── Stat grid ───── */
+  .pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  .stat-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
+    border: 1px solid rgba(255,255,255,.06); border-radius: 18px;
+    padding: 15px 16px 17px; position: relative; overflow: hidden; min-height: 94px;
+  }
+  .stat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; }
+  .stat-ico { display: flex; color: #5f5f76; }
+  .stat-label { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #84849a; }
+  .stat-value { font-size: 34px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -1px; }
+  .stat-unit { font-size: 19px; font-weight: 700; color: #b4b4c8; margin-left: 1px; }
+  .stat-sub { margin-top: 10px; font-size: 13px; color: #66667c; font-weight: 600; }
+  .accent-green { color: #2dd6b0 !important; }
+  .bar-track { margin-top: 14px; height: 6px; border-radius: 6px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .net-row { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
+  .net-row:first-of-type { margin-top: 0; }
+  .net-ico { display: flex; }
+  .net-val { font-size: 19px; font-weight: 800; color: #fff; }
+  .net-unit { font-size: 12.5px; font-weight: 600; color: #75758c; }
+
+  /* ───── Action buttons ───── */
+  .pc-actions { position: relative; z-index: 1; margin-top: 28px; display: flex; flex-direction: column; gap: 13px; }
+  .pc-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  .act-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
+    background: rgba(255,255,255,.018);
+    border: 1px solid color-mix(in srgb, var(--c, var(--accent)), transparent 62%);
+    border-radius: 18px; padding: 20px; cursor: pointer; color: #fff;
+    transition: background .18s, border-color .18s, box-shadow .18s, transform .12s;
+    font-family: inherit;
+  }
+  .act-btn:hover { background: color-mix(in srgb, var(--c, var(--accent)), transparent 90%); border-color: color-mix(in srgb, var(--c, var(--accent)), transparent 42%); box-shadow: 0 0 28px -10px var(--cg, var(--accent-glow)); }
+  .act-btn:active { transform: scale(.985); }
+  .act-label { font-size: 16px; font-weight: 700; }
+  .act-big { padding: 28px 20px; }
+  .act-big .act-label { font-size: 19px; }
+
+  /* ───── Overlay base ───── */
+  .pc-overlay {
+    position: absolute; inset: 0; z-index: 80;
+    background: rgba(4,4,8,.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: flex-end; justify-content: center; animation: pcfade .2s ease;
+  }
+
+  /* ───── Confirm sheet ───── */
+  .sheet {
+    width: 100%; background: #14141d; border: 1px solid rgba(255,255,255,.08);
+    border-bottom: none; border-radius: 30px 30px 0 0; padding: 14px 24px 40px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    animation: pcsheet .32s cubic-bezier(.2,.9,.2,1);
+  }
+  .sheet-grip { width: 40px; height: 5px; border-radius: 5px; background: rgba(255,255,255,.16); margin-bottom: 20px; }
+  .sheet-icon {
+    width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--c), transparent 86%);
+    border: 1px solid color-mix(in srgb, var(--c), transparent 58%);
+    box-shadow: 0 0 30px -8px var(--cg); margin-bottom: 16px;
+  }
+  .sheet-title { font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 9px; }
+  .sheet-msg { font-size: 14.5px; line-height: 1.5; color: #93939f; margin: 0 0 24px; max-width: 290px; }
+  .sheet-confirm {
+    width: 100%; padding: 16px; border-radius: 16px; border: none; cursor: pointer;
+    background: var(--c); color: color-mix(in srgb, var(--c), black 78%);
+    font-family: inherit; font-weight: 800; font-size: 16px; transition: filter .15s;
+  }
+  .sheet-confirm:hover { filter: brightness(1.08); }
+  .sheet-cancel {
+    width: 100%; padding: 15px; margin-top: 10px; border-radius: 16px; border: none; cursor: pointer;
+    background: rgba(255,255,255,.06); color: #c4c4d4; font-family: inherit; font-weight: 700; font-size: 16px;
+  }
+  .sheet-cancel:hover { background: rgba(255,255,255,.1); }
+
+  /* ───── Countdown ───── */
+  .pc-fullscreen {
+    position: absolute; inset: 0; z-index: 90;
+    background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--c), transparent 82%), #07070c 58%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    animation: pcfade .25s ease;
+  }
+  .cd-icon { margin-bottom: 22px; filter: drop-shadow(0 0 22px var(--cg)); }
+  .cd-verb { font-size: 16px; letter-spacing: 1px; color: #b0b0c2; font-weight: 600; }
+  .cd-num { font-size: 124px; font-weight: 800; color: #fff; line-height: 1; margin: 6px 0; }
+  .cd-num:not(:empty) { animation: cdpop .9s ease; }
+  .cd-hint { font-size: 14px; color: #75758c; font-weight: 600; }
+  .cd-cancel {
+    position: absolute; bottom: 54px; padding: 14px 42px; border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
+    color: #fff; font-family: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
+  }
+  .cd-cancel:hover { background: rgba(255,255,255,.1); }
+
+  .pc-black {
+    position: absolute; inset: 0; z-index: 95; background: #000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+    animation: pcfade .4s ease;
+  }
+  .black-hint { font-size: 12px; letter-spacing: 2.5px; color: #45454f; text-transform: uppercase; font-weight: 600; }
+
+  /* ───── Settings ───── */
+  .settings-overlay { align-items: stretch; justify-content: flex-end; background: rgba(0,0,0,.45); }
+  .settings-panel {
+    width: 100%; height: 100%; background: #0b0b13; display: flex; flex-direction: column;
+    animation: slidein .32s cubic-bezier(.2,.85,.2,1);
+  }
+  .settings-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 60px 18px 16px; font-size: 18px; font-weight: 800; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .settings-back {
+    background: rgba(255,255,255,.06); border: none; width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: #c4c4d4; cursor: pointer;
+    transform: rotate(180deg);
+  }
+  .settings-back:hover { background: rgba(255,255,255,.11); }
+  .settings-body { flex: 1; overflow-y: auto; padding: 16px 16px 44px; }
+  .settings-body::-webkit-scrollbar { width: 0; }
+  .set-group-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #62627a; margin: 18px 6px 10px; }
+  .set-group-label:first-child { margin-top: 4px; }
+  .set-card { background: rgba(255,255,255,.022); border: 1px solid rgba(255,255,255,.06); border-radius: 18px; overflow: hidden; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 16px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .set-row.last { border-bottom: none; }
+  .set-text { flex: 1; min-width: 0; }
+  .set-label { font-size: 15.5px; font-weight: 600; color: #eaeaf2; }
+  .set-sub { font-size: 12.5px; color: #66667c; margin-top: 3px; line-height: 1.35; }
+  .set-val { font-size: 15px; color: #84849a; font-weight: 500; }
+
+  .switch { width: 50px; height: 30px; border-radius: 30px; background: rgba(255,255,255,.13); border: none; position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
+  .switch.on { background: var(--accent); }
+  .knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .2s cubic-bezier(.2,.8,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .switch.on .knob { left: 23px; }
+
+  .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .color-btn { width: 48px; height: 48px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; transition: .2s; }
+  .color-btn.active { border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,.3); }
+  .color-btn:hover { transform: scale(1.05); }
+
+  .set-foot { text-align: center; font-size: 12px; color: #45454f; margin-top: 22px; font-weight: 500; }
+
+  .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: pring 2.2s ease-out infinite; }
+
+  /* ───── Keyframes ───── */
+  @keyframes pcblink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes pcfade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pcsheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes cdpop { 0% { transform: scale(.5); opacity: 0; } 35% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
+  @keyframes pring { 0% { transform: scale(.78); opacity: .65; } 100% { transform: scale(1.5); opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pc-overlay, .sheet, .pc-fullscreen, .pc-black, .settings-panel, .cd-num { animation: none !important; }
+    .pc-dot.live, .pulse-ring { animation-duration: 1.2s !important; }
+  }
+
+  /* Power button */
+  .power-btn {
+    width: 132px; height: 132px; border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; -webkit-tap-highlight-color: transparent;
+    transition: transform .25s cubic-bezier(.2,.8,.2,1);
+  }
+  .power-btn:active { transform: scale(0.94); }
+  .power-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2.5px solid var(--accent);
+    box-shadow: 0 0 44px -6px var(--accent-glow), 0 0 0 1px color-mix(in srgb, var(--accent), transparent 70%);
+  }
+  .power-icon {
+    position: relative; color: var(--accent-bright);
+    filter: drop-shadow(0 0 8px var(--accent-glow));
+  }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+<div class="pc-root">
+  <div class="pc-scroll">
+    <div class="pc-aura"></div>
+
+    <header class="pc-hero">
+      <div class="power-btn" id="powerBtn">
+        <div class="power-ring"></div>
+        <div class="power-icon">
+          <svg width="45" height="45" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.2v8.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+            <path d="M6.3 6.6a8 8 0 1 0 11.4 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <h1 class="pc-title">Power Control</h1>
+      <div class="pc-device" id="deviceName">Loading...</div>
+    </header>
+
+    <section class="pc-section">
+      <div class="pc-section-head">
+        <span class="pc-section-label">Live Stats</span>
+        <div class="pc-section-tools">
+          <span class="pc-dot live"></span>
+          <button class="pc-gear" id="settingsBtn" aria-label="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.7" />
+              <path d="M12 2.6v2.3M12 19.1v2.3M21.4 12h-2.3M4.9 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6 17 17M7 7 5.4 5.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="pc-grid">
+        <div class="stat-card">
+          <div class="stat-head">
+            <span class="stat-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.7" />
+                <path d="M10 2.5v3M14 2.5v3M10 18.5v3M14 18.5v3M2.5 10h3M2.5 14h3M18.5 10h3M18.5 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="stat-label">CPU</span>
+          </div>
+          <div class="stat-value"><span id="cpuVal">0</span><span class="stat-unit">%</span></div>
+          <div class="bar-track"><div class="bar-fill" id="cpuBar" style="width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-bright))"></div></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-head">
+            <span class="stat-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="6" width="16" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7" />
+                <path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="stat-label">RAM</span>
+          </div>
+          <div class="stat-value"><span id="ramVal">0</span><span class="stat-unit">%</span></div>
+          <div class="bar-track"><div class="bar-fill" id="ramBar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #60a5fa)"></div></div>
+          <div class="stat-sub" id="ramSub">0 / 16 GB</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-head">
+            <span class="stat-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.7" />
+                <path d="M12 7.6V12l3 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="stat-label">Uptime</span>
+          </div>
+          <div class="stat-value accent-green" style="font-size: 25px; white-space: nowrap;" id="uptimeVal">0d 00h 00m</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-head">
+            <span class="stat-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M2.5 9.2a13 13 0 0 1 19 0M5.6 12.4a8.6 8.6 0 0 1 12.8 0M8.8 15.6a4.2 4.2 0 0 1 6.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                <circle cx="12" cy="19" r="1.4" fill="currentColor" />
+              </svg>
+            </span>
+            <span class="stat-label">Network</span>
+          </div>
+          <div class="net-row">
+            <span class="net-ico" style="color: #5aa6f5">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <path d="M12 4v15M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="net-val"><span id="netDownVal">0</span> <span class="net-unit">KB/s</span></span>
+          </div>
+          <div class="net-row">
+            <span class="net-ico" style="color: var(--accent-bright)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <path d="M12 20V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span class="net-val"><span id="netUpVal">0</span> <span class="net-unit">KB/s</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pc-actions">
+      <button class="act-btn act-big" data-action="shutdown" style="--c: #f4685f; --cg: rgba(244,104,95,.32)">
+        <span style="color: #f4685f">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.2v8.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+            <path d="M6.3 6.6a8 8 0 1 0 11.4 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+          </svg>
+        </span>
+        <span class="act-label">Shut Down</span>
+      </button>
+      <div class="pc-action-row">
+        <button class="act-btn" data-action="restart" style="--c: #f5b53f; --cg: rgba(245,181,63,.30)">
+          <span style="color: #f5b53f">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M20 5.5v4.2h-4.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M19.2 9.5A7.6 7.6 0 1 0 20.4 14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="act-label">Restart</span>
+        </button>
+        <button class="act-btn" data-action="sleep" style="--c: #5aa6f5; --cg: rgba(90,166,245,.28)">
+          <span style="color: #5aa6f5">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="act-label">Sleep</span>
+        </button>
+      </div>
+    </section>
+
+    <div style="height: 28px;"></div>
+  </div>
+
+  <!-- Confirm sheet -->
+  <div class="pc-overlay" id="confirmOverlay" style="display: none;">
+    <div class="sheet" id="confirmSheet">
+      <div class="sheet-grip"></div>
+      <div class="sheet-icon" id="confirmIcon"></div>
+      <h2 class="sheet-title" id="confirmTitle"></h2>
+      <p class="sheet-msg" id="confirmMsg"></p>
+      <button class="sheet-confirm" id="confirmBtn">Confirm</button>
+      <button class="sheet-cancel" id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Countdown -->
+  <div class="pc-fullscreen" id="countdownScreen" style="display: none;">
+    <div class="cd-icon" id="countdownIcon"></div>
+    <div class="cd-verb" id="countdownVerb"></div>
+    <div class="cd-num" id="countdownNum"></div>
+    <div class="cd-hint" id="countdownHint"></div>
+    <button class="cd-cancel" id="cancelCountdownBtn">Cancel</button>
+  </div>
+
+  <!-- Settings panel -->
+  <div class="pc-overlay settings-overlay" id="settingsOverlay" style="display: none;">
+    <div class="settings-panel">
+      <div class="settings-head">
+        <button class="settings-back" id="settingsBackBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <span>Settings</span>
+        <span style="width: 34px;"></span>
+      </div>
+      <div class="settings-body">
+        <div class="set-group-label">Appearance</div>
+        <div class="set-card">
+          <div class="set-row last">
+            <div class="set-text"><div class="set-label">Accent Color</div></div>
+            <div class="color-grid">
+              <button class="color-btn active" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+              <button class="color-btn" data-color="#3b82f6" style="background: #3b82f6;"></button>
+              <button class="color-btn" data-color="#10b981" style="background: #10b981;"></button>
+              <button class="color-btn" data-color="#f5b53f" style="background: #f5b53f;"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="set-group-label">Power</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-text"><div class="set-label">Confirm before action</div><div class="set-sub">Ask before shut down, restart, etc.</div></div>
+            <button class="switch on" id="confirmSwitch" data-key="confirm" onclick="toggleSetting(this)"><span class="knob"></span></button>
+          </div>
+          <div class="set-row last">
+            <div class="set-text"><div class="set-label">Auto-refresh stats</div><div class="set-sub">Live update every 2 seconds</div></div>
+            <button class="switch on" id="liveSwitch" data-key="live" onclick="toggleSetting(this)"><span class="knob"></span></button>
+          </div>
+        </div>
+
+        <div class="set-group-label">Device</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label">Name</div>
+            <div class="set-val" id="deviceNameInfo">-</div>
+          </div>
+          <div class="set-row last">
+            <div class="set-label">Status</div>
+            <div class="set-val">Connected</div>
+          </div>
+        </div>
+        <div class="set-foot">Power Control · connected via Internet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const token = localStorage.getItem('pc_token') || '';
+let settings = JSON.parse(localStorage.getItem('pc_settings') || '{"confirm": true, "live": true, "accent": "#8b5cf6"}');
+let pendingAction = null;
+let countdownActive = false;
+
+const ACTIONS = {
+  shutdown: { label: 'Shut Down', verb: 'Shutting down', color: '#f4685f', glow: 'rgba(244,104,95,.32)', count: true },
+  restart: { label: 'Restart', verb: 'Restarting', color: '#f5b53f', glow: 'rgba(245,181,63,.30)', count: true },
+  sleep: { label: 'Sleep', verb: 'Going to sleep', color: '#5aa6f5', glow: 'rgba(90,166,245,.28)', count: false },
+};
+
+function setSetting(key, val) {
+  settings[key] = val;
+  localStorage.setItem('pc_settings', JSON.stringify(settings));
+}
+
+function toggleSetting(el) {
+  const key = el.dataset.key;
+  const newVal = !settings[key];
+  el.classList.toggle('on', newVal);
+  setSetting(key, newVal);
+}
+
+function setAccent(color) {
+  setSetting('accent', color);
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--accent-bright', color + 'cc');
+  document.documentElement.style.setProperty('--accent-glow', color + '4d');
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.toggle('active', b.dataset.color === color));
+}
+
+// Load settings
+setAccent(settings.accent);
+document.getElementById('confirmSwitch').classList.toggle('on', settings.confirm);
+document.getElementById('liveSwitch').classList.toggle('on', settings.live);
+
+// Fetch real data
+async function loadStats() {
+  try {
+    const r = await fetch('/stats', { headers: { 'X-Token': token } });
+    if (!r.ok) throw new Error('Auth failed');
+    const s = await r.json();
+
+    document.getElementById('cpuVal').textContent = s.cpu;
+    document.getElementById('cpuBar').style.width = s.cpu + '%';
+
+    document.getElementById('ramVal').textContent = s.ram;
+    document.getElementById('ramBar').style.width = s.ram + '%';
+    document.getElementById('ramSub').textContent = (s.ram / 100 * 16).toFixed(1) + ' / 16 GB';
+
+    document.getElementById('netDownVal').textContent = s.netDown.toFixed(1);
+    document.getElementById('netUpVal').textContent = s.netUp.toFixed(1);
+
+    const d = Math.floor(s.uptime / 86400);
+    const h = Math.floor((s.uptime % 86400) / 3600);
+    const m = Math.floor((s.uptime % 3600) / 60);
+    document.getElementById('uptimeVal').textContent = `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+  } catch (e) {
+    console.error('Stats fetch failed:', e);
+    if (e.message.includes('Auth')) {
+      localStorage.removeItem('pc_token');
+      location.href = '/pair';
+    }
+  }
+}
+
+// Load device info
+async function loadInfo() {
+  try {
+    const r = await fetch('/info', { headers: { 'X-Token': token } });
+    if (!r.ok) throw new Error('Auth failed');
+    const d = await r.json();
+    document.getElementById('deviceName').textContent = d.host;
+    document.getElementById('deviceNameInfo').textContent = d.host;
+  } catch (e) {
+    if (e.message.includes('Auth')) {
+      localStorage.removeItem('pc_token');
+      location.href = '/pair';
+    }
+  }
+}
+
+function showConfirm(action) {
+  const a = ACTIONS[action];
+  const msgs = {
+    shutdown: 'All apps will close and the PC will power off.',
+    restart: 'All apps will close and the PC will restart.',
+    sleep: 'The PC will enter low-power sleep. Press any key to wake.',
+  };
+
+  document.getElementById('confirmIcon').innerHTML = `
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="${a.color}" stroke-width="2.4" stroke-linecap="round">
+      ${action === 'sleep' ? '<path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4Z" />' : '<path d="M12 3.2v8.4" /><path d="M6.3 6.6a8 8 0 1 0 11.4 0" />'}
+    </svg>
+  `;
+  document.getElementById('confirmTitle').textContent = a.label + '?';
+  document.getElementById('confirmMsg').textContent = msgs[action];
+  document.getElementById('confirmSheet').style.setProperty('--c', a.color);
+  document.getElementById('confirmSheet').style.setProperty('--cg', a.glow);
+
+  pendingAction = action;
+  document.getElementById('confirmOverlay').style.display = 'flex';
+}
+
+function hideConfirm() {
+  document.getElementById('confirmOverlay').style.display = 'none';
+  pendingAction = null;
+}
+
+async function runAction(action) {
+  hideConfirm();
+  const a = ACTIONS[action];
+
+  if (a.count) {
+    countdownActive = true;
+    let n = 5;
+    document.getElementById('countdownIcon').innerHTML = `
+      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="${a.color}" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 3.2v8.4" /><path d="M6.3 6.6a8 8 0 1 0 11.4 0" />
+      </svg>
+    `;
+    document.getElementById('countdownVerb').textContent = a.verb + '…';
+    document.getElementById('countdownHint').textContent = `in ${n} seconds`;
+    document.getElementById('countdownScreen').style.setProperty('--c', a.color);
+    document.getElementById('countdownScreen').style.setProperty('--cg', a.glow);
+    document.getElementById('countdownScreen').style.display = 'flex';
+
+    const tick = setInterval(() => {
+      n--;
+      document.getElementById('countdownNum').textContent = n > 0 ? n : '';
+      document.getElementById('countdownHint').textContent = n > 0 ? `in ${n} second${n === 1 ? '' : 's'}` : 'Goodbye';
+      if (n <= 0) {
+        clearInterval(tick);
+        sendCommand(action);
+        setTimeout(() => { document.getElementById('countdownScreen').style.display = 'none'; countdownActive = false; }, 1500);
+      }
+    }, 1000);
+  } else {
+    sendCommand(action);
+  }
+}
+
+async function sendCommand(cmd) {
+  try {
+    const r = await fetch('/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Token': token },
+      body: 'cmd=' + cmd
+    });
+    if (r.status === 403) {
+      localStorage.removeItem('pc_token');
+      location.href = '/pair';
+    }
+  } catch (e) {
+    console.error('Command failed:', e);
+  }
+}
+
+// Event listeners
+document.querySelectorAll('[data-action]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const action = btn.dataset.action;
+    if (settings.confirm) showConfirm(action);
+    else runAction(action);
+  });
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  if (pendingAction) runAction(pendingAction);
+});
+
+document.getElementById('cancelBtn').addEventListener('click', hideConfirm);
+
+document.getElementById('cancelCountdownBtn').addEventListener('click', () => {
+  countdownActive = false;
+  document.getElementById('countdownScreen').style.display = 'none';
+});
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').style.display = 'flex';
+});
+
+document.getElementById('settingsBackBtn').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').style.display = 'none';
+});
+
+document.getElementById('settingsOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) document.getElementById('settingsOverlay').style.display = 'none';
+});
+
+document.getElementById('confirmOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) hideConfirm();
+});
+
+document.querySelectorAll('.color-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAccent(btn.dataset.color));
+});
+
+document.getElementById('powerBtn').addEventListener('click', () => {
+  if (settings.confirm) showConfirm('shutdown');
+  else runAction('shutdown');
+});
+
+// Init
+loadInfo();
+loadStats();
+if (settings.live) setInterval(loadStats, 2000);
+
+// PWA
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+</script>
+</body>
+</html>

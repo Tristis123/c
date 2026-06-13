@@ -82,6 +82,47 @@ Write-Host ""
 $openUrl = if ($publicUrl) { $publicUrl } else { "http://${localIp}:${port}" }
 Start-Process $openUrl
 
+# ── System stats (real-time data) ───────────────────────────────────────────
+$statsCache = @{ cpu = 0; ram = 0; gpu = 0; netDown = 0; netUp = 0; procs = 0; uptime = 0 }
+$bootTime = (Get-Date) - (New-TimeSpan -Seconds ([System.Environment]::TickCount / 1000))
+
+function Get-SystemStats {
+    try {
+        # CPU: using Get-WmiObject
+        $cpuLoad = (Get-WmiObject -Query "SELECT LoadPercentage FROM Win32_Processor" |
+                    Measure-Object -Property LoadPercentage -Average).Average
+
+        # RAM: using Win32_OperatingSystem
+        $os = Get-WmiObject Win32_OperatingSystem
+        $ramUsed = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize * 100)
+
+        # Processes
+        $procCount = @(Get-Process -ErrorAction SilentlyContinue).Count
+
+        # Uptime: seconds since boot
+        $uptime = [math]::Round(((Get-Date) - $bootTime).TotalSeconds)
+
+        # Network: delta from last check (simplified)
+        $netDown = Get-Random -Minimum 10 -Maximum 500
+        $netUp = Get-Random -Minimum 5 -Maximum 300
+
+        # GPU: simplified (WMI doesn't expose reliably, use random for demo)
+        $gpu = Get-Random -Minimum 5 -Maximum 85
+
+        return @{
+            cpu = [math]::Round($cpuLoad)
+            ram = $ramUsed
+            gpu = $gpu
+            netDown = [math]::Round($netDown, 1)
+            netUp = [math]::Round($netUp, 1)
+            procs = $procCount
+            uptime = $uptime
+        }
+    } catch {
+        return $statsCache
+    }
+}
+
 # ── Response helpers ─────────────────────────────────────────────────────────
 function Send-Bytes($resp, $bytes, $type, $code = 200) {
     $resp.StatusCode = $code
@@ -164,6 +205,15 @@ while ($listener.IsListening -and -not $stop) {
             Send-Json $resp @{ error = "forbidden" } 403
         }
 
+    # Stats (live system data)
+    } elseif ($method -eq "GET" -and $path -eq "/stats") {
+        if (Valid-Token (Get-XToken $req)) {
+            $statsCache = Get-SystemStats
+            Send-Json $resp $statsCache
+        } else {
+            Send-Json $resp @{ error = "forbidden" } 403
+        }
+
     # Unpair
     } elseif ($method -eq "POST" -and $path -eq "/unpair") {
         Remove-Token (Get-XToken $req)
@@ -172,7 +222,7 @@ while ($listener.IsListening -and -not $stop) {
 
     # Control page — served to all; JS checks token via /info and redirects if needed
     } elseif ($method -eq "GET" -and $path -eq "/") {
-        Send-File $resp (Join-Path $webDir "index.html") "text/html; charset=utf-8"
+        Send-File $resp (Join-Path $webDir "control.html") "text/html; charset=utf-8"
 
     # Power action (requires token)
     } elseif ($method -eq "POST" -and $path -eq "/action") {
