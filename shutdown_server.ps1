@@ -170,15 +170,9 @@ while ($listener.IsListening -and -not $stop) {
         Write-Host "Device unpaired." -ForegroundColor Yellow
         Send-Json $resp @{ ok = $true }
 
-    # Control page (requires token)
+    # Control page — served to all; JS checks token via /info and redirects if needed
     } elseif ($method -eq "GET" -and $path -eq "/") {
-        if (Valid-Token (Get-XToken $req)) {
-            Send-File $resp (Join-Path $webDir "index.html") "text/html; charset=utf-8"
-        } else {
-            $resp.StatusCode = 302
-            $resp.Headers.Add("Location", "/pair")
-            $resp.Close()
-        }
+        Send-File $resp (Join-Path $webDir "index.html") "text/html; charset=utf-8"
 
     # Power action (requires token)
     } elseif ($method -eq "POST" -and $path -eq "/action") {
