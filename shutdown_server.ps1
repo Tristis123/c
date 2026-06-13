@@ -82,45 +82,129 @@ Write-Host ""
 $openUrl = if ($publicUrl) { $publicUrl } else { "http://${localIp}:${port}" }
 Start-Process $openUrl
 
-# ── System stats (real-time data) ───────────────────────────────────────────
-$statsCache = @{ cpu = 0; ram = 0; gpu = 0; netDown = 0; netUp = 0; procs = 0; uptime = 0 }
-$bootTime = (Get-Date) - (New-TimeSpan -Seconds ([System.Environment]::TickCount / 1000))
+# ── System stats (comprehensive) ─────────────────────────────────────────────
+$script:prevNetDown = 0; $script:prevNetUp = 0; $script:prevNetTime = (Get-Date)
 
 function Get-SystemStats {
+    $s = @{}
+
+    # ── CPU load + clock + throttle ──────────────────────────────────────────
     try {
-        # CPU: using Get-WmiObject
-        $cpuLoad = (Get-WmiObject -Query "SELECT LoadPercentage FROM Win32_Processor" |
-                    Measure-Object -Property LoadPercentage -Average).Average
+        $cpus = Get-WmiObject -Query "SELECT LoadPercentage,CurrentClockSpeed,MaxClockSpeed,Name,NumberOfCores FROM Win32_Processor"
+        $s.cpu         = [math]::Round(($cpus | Measure-Object -Property LoadPercentage -Average).Average)
+        $first         = $cpus | Select-Object -First 1
+        $s.cpuName     = $first.Name.Trim() -replace '\s{2,}', ' '
+        $s.cpuCores    = $first.NumberOfCores
+        $s.cpuClockMhz = $first.CurrentClockSpeed
+        $s.cpuMaxMhz   = $first.MaxClockSpeed
+        $s.cpuThrottle = ($s.cpuClockMhz -lt [int]($s.cpuMaxMhz * 0.88))
+    } catch { $s.cpu = 0 }
 
-        # RAM: using Win32_OperatingSystem
-        $os = Get-WmiObject Win32_OperatingSystem
-        $ramUsed = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize * 100)
-
-        # Processes
-        $procCount = @(Get-Process -ErrorAction SilentlyContinue).Count
-
-        # Uptime: seconds since boot
-        $uptime = [math]::Round(((Get-Date) - $bootTime).TotalSeconds)
-
-        # Network: delta from last check (simplified)
-        $netDown = Get-Random -Minimum 10 -Maximum 500
-        $netUp = Get-Random -Minimum 5 -Maximum 300
-
-        # GPU: simplified (WMI doesn't expose reliably, use random for demo)
-        $gpu = Get-Random -Minimum 5 -Maximum 85
-
-        return @{
-            cpu = [math]::Round($cpuLoad)
-            ram = $ramUsed
-            gpu = $gpu
-            netDown = [math]::Round($netDown, 1)
-            netUp = [math]::Round($netUp, 1)
-            procs = $procCount
-            uptime = $uptime
+    # ── CPU temperature (ACPI thermal zones) ─────────────────────────────────
+    try {
+        $tzs = Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue
+        if ($tzs) {
+            $temps = @($tzs | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) })
+            $s.cpuTemps  = $temps
+            $s.cpuTemp   = ($temps | Measure-Object -Maximum).Maximum
+            $s.cpuTempOk = $s.cpuTemp -lt 90
         }
-    } catch {
-        return $statsCache
+    } catch {}
+
+    # ── RAM + pagefile ────────────────────────────────────────────────────────
+    try {
+        $os = Get-WmiObject Win32_OperatingSystem
+        $s.ramTotalGB = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
+        $s.ramFreeGB  = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
+        $s.ramUsedGB  = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / 1MB, 1)
+        $s.ram        = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize * 100)
+
+        $pf = Get-WmiObject Win32_PageFileUsage -ErrorAction SilentlyContinue
+        if ($pf) {
+            $s.swapUsedMB  = ($pf | Measure-Object -Property CurrentUsage -Sum).Sum
+            $s.swapTotalMB = ($pf | Measure-Object -Property AllocatedBaseSize -Sum).Sum
+            $s.swapPct     = if ($s.swapTotalMB -gt 0) { [math]::Round($s.swapUsedMB / $s.swapTotalMB * 100) } else { 0 }
+        }
+
+        $s.uptime = [math]::Round(((Get-Date) - ($os.ConvertToDateTime($os.LastBootUpTime))).TotalSeconds)
+    } catch {}
+
+    # ── GPU (NVIDIA via nvidia-smi) ───────────────────────────────────────────
+    $nvSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+    if ($nvSmi) {
+        try {
+            $raw = & nvidia-smi --query-gpu=index,name,temperature.gpu,utilization.gpu,memory.used,memory.total,clocks.current.graphics,clocks.current.memory,power.draw,power.limit,clocks_throttle_reasons.active --format=csv,noheader,nounits 2>$null
+            $gpus = @()
+            foreach ($line in ($raw -split "`n" | Where-Object { $_.Trim() })) {
+                $f = $line -split ',\s*'
+                if ($f.Count -lt 10) { continue }
+                $vramUsedMB  = [int]($f[4] -replace '[^\d]','')
+                $vramTotalMB = [int]($f[5] -replace '[^\d]','')
+                $gpus += @{
+                    index        = [int]($f[0] -replace '[^\d]','')
+                    name         = $f[1].Trim()
+                    temp         = [int]($f[2] -replace '[^\d]','')
+                    load         = [int]($f[3] -replace '[^\d]','')
+                    vramUsedMB   = $vramUsedMB
+                    vramTotalMB  = $vramTotalMB
+                    vramUsedGB   = [math]::Round($vramUsedMB / 1024, 1)
+                    vramTotalGB  = [math]::Round($vramTotalMB / 1024, 1)
+                    vramPct      = if ($vramTotalMB -gt 0) { [math]::Round($vramUsedMB / $vramTotalMB * 100) } else { 0 }
+                    clockMhz     = [int]($f[6] -replace '[^\d]','')
+                    memClockMhz  = [int]($f[7] -replace '[^\d]','')
+                    powerDraw    = if ($f[8] -match '[\d.]+') { [math]::Round([float]($f[8] -replace '[^\d.]',''), 1) } else { $null }
+                    powerLimit   = if ($f[9] -match '[\d.]+') { [math]::Round([float]($f[9] -replace '[^\d.]',''), 1) } else { $null }
+                    throttling   = ($f.Count -gt 10 -and $f[10].Trim() -notin @('0x0000000000000000','[N/A]'))
+                    tempOk       = [int]($f[2] -replace '[^\d]','') -lt 85
+                    vendor       = 'NVIDIA'
+                }
+            }
+            $s.gpus       = $gpus
+            $s.gpuVendor  = 'NVIDIA'
+            $s.gpuThrottle = ($gpus | Where-Object { $_.throttling }) -ne $null
+        } catch {}
     }
+
+    # ── GPU fallback (AMD / Intel via Win32_VideoController) ─────────────────
+    if (-not $s.gpus) {
+        try {
+            $vcs = Get-WmiObject Win32_VideoController -ErrorAction SilentlyContinue |
+                   Where-Object { $_.AdapterRAM -gt 0 -and $_.PNPDeviceID -notmatch 'ROOT' }
+            if ($vcs) {
+                $gpus = @(); $i = 0
+                foreach ($vc in $vcs) {
+                    $gpus += @{
+                        index       = $i; name = $vc.Caption.Trim()
+                        temp        = $null; load = $null; throttling = $false; tempOk = $true
+                        vramTotalGB = [math]::Round($vc.AdapterRAM / 1GB, 1)
+                        vramUsedGB  = $null; vramPct = $null
+                        clockMhz    = $null; memClockMhz = $null
+                        powerDraw   = $null; powerLimit  = $null
+                        vendor      = if ($vc.Caption -match 'AMD|Radeon') { 'AMD' } elseif ($vc.Caption -match 'Intel') { 'Intel' } else { 'GPU' }
+                    }
+                    $i++
+                }
+                $s.gpus = $gpus
+            }
+        } catch {}
+    }
+
+    # ── Network (real KB/s via performance counters) ──────────────────────────
+    try {
+        $nets = Get-WmiObject -Query "SELECT BytesReceivedPersec,BytesSentPersec FROM Win32_PerfFormattedData_Tcpip_NetworkInterface WHERE Name NOT LIKE '%Loopback%' AND Name NOT LIKE '%Teredo%'" -ErrorAction SilentlyContinue
+        if ($nets) {
+            $s.netDown = [math]::Round(($nets | Measure-Object -Property BytesReceivedPersec -Sum).Sum / 1024, 1)
+            $s.netUp   = [math]::Round(($nets | Measure-Object -Property BytesSentPersec   -Sum).Sum / 1024, 1)
+        } else { $s.netDown = 0; $s.netUp = 0 }
+    } catch { $s.netDown = 0; $s.netUp = 0 }
+
+    # ── Processes ─────────────────────────────────────────────────────────────
+    try { $s.procs = @(Get-Process -ErrorAction SilentlyContinue).Count } catch { $s.procs = 0 }
+
+    # ── Overall throttle alert ─────────────────────────────────────────────────
+    $s.anyThrottle = ($s.cpuThrottle -or $s.gpuThrottle)
+
+    return $s
 }
 
 # ── Response helpers ─────────────────────────────────────────────────────────

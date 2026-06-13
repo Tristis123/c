@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
 <meta name="theme-color" content="#8b5cf6">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -10,671 +10,733 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon.svg">
 <title>Power Control</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: #050507;
-    font-family: 'Manrope', -apple-system, system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
-  }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#050507}
+body{font-family:'Manrope',-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+:root{--a:#8b5cf6;--ab:#a78bfa;--ag:rgba(139,92,246,.28)}
+.root{position:relative;height:100%;width:100%;overflow:hidden;background:#0a0a11;color:#e7e7ef;font-variant-numeric:tabular-nums}
+.scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:0 16px 32px}
+.scroll::-webkit-scrollbar{width:0}
+.aura{position:absolute;top:0;left:50%;transform:translateX(-50%);width:380px;height:280px;
+  pointer-events:none;z-index:0;background:radial-gradient(circle at 50% 30%,var(--ag),transparent 65%);
+  opacity:.6;filter:blur(16px)}
 
-  :root {
-    --accent: #8b5cf6;
-    --accent-bright: #a78bfa;
-    --accent-glow: rgba(139, 92, 246, 0.3);
-  }
+/* hero */
+.hero{position:relative;z-index:1;padding-top:64px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.pc-title{font-size:28px;font-weight:800;margin:18px 0 7px;letter-spacing:-.5px;color:#fff}
+.pc-device{font-size:12px;letter-spacing:3px;color:#55556a;font-weight:700}
 
-  /* ───── Root / scroll ───── */
-  .pc-root {
-    position: relative; height: 100%; width: 100%; overflow: hidden;
-    background: #0a0a11; color: #e7e7ef;
-    font-variant-numeric: tabular-nums;
-  }
-  .pc-scroll {
-    position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
-    padding: 0 20px 24px;
-  }
-  .pc-scroll::-webkit-scrollbar { width: 0; }
-  .pc-aura {
-    position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-    width: 360px; height: 320px; pointer-events: none; z-index: 0;
-    background: radial-gradient(circle at 50% 28%, var(--accent-glow), transparent 62%);
-    opacity: .55; filter: blur(14px);
-  }
+/* power btn */
+.pwr-wrap{width:120px;height:120px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+.pwr-wrap:active{transform:scale(.93)}
+.pwr-ring{position:absolute;inset:0;border-radius:50%;border:2.5px solid var(--a);
+  box-shadow:0 0 40px -6px var(--ag),0 0 0 1px color-mix(in srgb,var(--a),transparent 72%)}
+.pwr-icon{position:relative;color:var(--ab);filter:drop-shadow(0 0 8px var(--ag))}
 
-  /* ───── Hero ───── */
-  .pc-hero {
-    position: relative; z-index: 1;
-    padding-top: 74px; display: flex; flex-direction: column;
-    align-items: center; text-align: center;
-  }
-  .pc-title { font-size: 30px; font-weight: 800; margin: 22px 0 9px; letter-spacing: -.6px; color: #fff; }
-  .pc-device { font-size: 13px; letter-spacing: 3.5px; color: #66667c; font-weight: 700; }
-  .pwr { touch-action: manipulation; }
+/* throttle alert */
+.alert{position:relative;z-index:2;margin:14px 0 0;padding:10px 14px;border-radius:14px;
+  background:rgba(245,181,63,.1);border:1px solid rgba(245,181,63,.3);
+  display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#f5b53f}
+.alert svg{flex-shrink:0}
+.alert.crit{background:rgba(244,104,95,.1);border-color:rgba(244,104,95,.3);color:#f4685f}
 
-  /* ───── Section ───── */
-  .pc-section { position: relative; z-index: 1; margin-top: 32px; }
-  .pc-section-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 15px; padding: 0 2px;
-  }
-  .pc-section-label { font-size: 13px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: #75758c; }
-  .pc-section-tools { display: flex; align-items: center; gap: 12px; }
-  .pc-dot { width: 9px; height: 9px; border-radius: 50%; background: #34343f; transition: .3s; }
-  .pc-dot.live { background: #2dd6b0; box-shadow: 0 0 10px #2dd6b0; animation: pcblink 2.4s infinite; }
-  .pc-gear { background: none; border: none; color: #66667c; padding: 4px; cursor: pointer; display: flex; transition: .15s; }
-  .pc-gear:hover { color: #b0b0c6; transform: rotate(30deg); }
+/* sections */
+.sec{position:relative;z-index:1;margin-top:24px}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px}
+.sec-label{font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#65657a}
+.sec-tools{display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:#2a2a38}
+.dot.live{background:#2dd6b0;box-shadow:0 0 8px #2dd6b0;animation:blink 2.4s infinite}
+.gear-btn{background:none;border:none;color:#55556a;padding:4px;cursor:pointer;display:flex;transition:.15s}
+.gear-btn:hover{color:#a0a0bc;transform:rotate(28deg)}
 
-  /* ───── Stat grid ───── */
-  .pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
-  .stat-card {
-    background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012));
-    border: 1px solid rgba(255,255,255,.06); border-radius: 18px;
-    padding: 15px 16px 17px; position: relative; overflow: hidden; min-height: 94px;
-  }
-  .stat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; }
-  .stat-ico { display: flex; color: #5f5f76; }
-  .stat-label { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #84849a; }
-  .stat-value { font-size: 34px; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -1px; }
-  .stat-unit { font-size: 19px; font-weight: 700; color: #b4b4c8; margin-left: 1px; }
-  .stat-sub { margin-top: 10px; font-size: 13px; color: #66667c; font-weight: 600; }
-  .accent-green { color: #2dd6b0 !important; }
-  .bar-track { margin-top: 14px; height: 6px; border-radius: 6px; background: rgba(255,255,255,.08); overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 6px; transition: width .6s cubic-bezier(.2,.8,.2,1); }
-  .net-row { display: flex; align-items: center; gap: 9px; margin-top: 7px; }
-  .net-row:first-of-type { margin-top: 0; }
-  .net-ico { display: flex; }
-  .net-val { font-size: 19px; font-weight: 800; color: #fff; }
-  .net-unit { font-size: 12.5px; font-weight: 600; color: #75758c; }
+/* cards */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.grid.wide{grid-template-columns:1fr}
+.card{background:linear-gradient(160deg,rgba(255,255,255,.036),rgba(255,255,255,.012));
+  border:1px solid rgba(255,255,255,.06);border-radius:18px;padding:14px 15px 16px;position:relative;overflow:hidden;min-height:88px}
+.card-head{display:flex;align-items:center;gap:7px;margin-bottom:11px}
+.card-ico{display:flex;color:#4e4e64}
+.card-label{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#7a7a94}
+.card-name{font-size:11px;color:#4e4e64;font-weight:600;margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px}
+.big{font-size:32px;font-weight:800;color:#fff;line-height:1;letter-spacing:-1px}
+.unit{font-size:17px;font-weight:700;color:#a0a0bc;margin-left:1px}
+.sub{margin-top:8px;font-size:12px;color:#55556a;font-weight:600}
+.green{color:#2dd6b0}
+.amber{color:#f5b53f}
+.red{color:#f4685f}
 
-  /* ───── Action buttons ───── */
-  .pc-actions { position: relative; z-index: 1; margin-top: 28px; display: flex; flex-direction: column; gap: 13px; }
-  .pc-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
-  .act-btn {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
-    background: rgba(255,255,255,.018);
-    border: 1px solid color-mix(in srgb, var(--c, var(--accent)), transparent 62%);
-    border-radius: 18px; padding: 20px; cursor: pointer; color: #fff;
-    transition: background .18s, border-color .18s, box-shadow .18s, transform .12s;
-    font-family: inherit;
-  }
-  .act-btn:hover { background: color-mix(in srgb, var(--c, var(--accent)), transparent 90%); border-color: color-mix(in srgb, var(--c, var(--accent)), transparent 42%); box-shadow: 0 0 28px -10px var(--cg, var(--accent-glow)); }
-  .act-btn:active { transform: scale(.985); }
-  .act-label { font-size: 16px; font-weight: 700; }
-  .act-big { padding: 28px 20px; }
-  .act-big .act-label { font-size: 19px; }
+/* bar */
+.bar-track{margin-top:11px;height:5px;border-radius:5px;background:rgba(255,255,255,.07);overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
 
-  /* ───── Overlay base ───── */
-  .pc-overlay {
-    position: absolute; inset: 0; z-index: 80;
-    background: rgba(4,4,8,.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-    display: flex; align-items: flex-end; justify-content: center; animation: pcfade .2s ease;
-  }
+/* temp badge */
+.temp-badge{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;
+  padding:3px 8px;border-radius:8px;margin-top:8px}
+.temp-badge.ok{background:rgba(45,214,176,.1);color:#2dd6b0}
+.temp-badge.warn{background:rgba(245,181,63,.12);color:#f5b53f}
+.temp-badge.hot{background:rgba(244,104,95,.12);color:#f4685f;animation:pulse-bg 1.5s infinite}
+.throttle-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:8px;margin-top:6px;background:rgba(244,104,95,.12);color:#f4685f}
 
-  /* ───── Confirm sheet ───── */
-  .sheet {
-    width: 100%; background: #14141d; border: 1px solid rgba(255,255,255,.08);
-    border-bottom: none; border-radius: 30px 30px 0 0; padding: 14px 24px 40px;
-    display: flex; flex-direction: column; align-items: center; text-align: center;
-    animation: pcsheet .32s cubic-bezier(.2,.9,.2,1);
-  }
-  .sheet-grip { width: 40px; height: 5px; border-radius: 5px; background: rgba(255,255,255,.16); margin-bottom: 20px; }
-  .sheet-icon {
-    width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    background: color-mix(in srgb, var(--c), transparent 86%);
-    border: 1px solid color-mix(in srgb, var(--c), transparent 58%);
-    box-shadow: 0 0 30px -8px var(--cg); margin-bottom: 16px;
-  }
-  .sheet-title { font-size: 22px; font-weight: 800; color: #fff; margin: 0 0 9px; }
-  .sheet-msg { font-size: 14.5px; line-height: 1.5; color: #93939f; margin: 0 0 24px; max-width: 290px; }
-  .sheet-confirm {
-    width: 100%; padding: 16px; border-radius: 16px; border: none; cursor: pointer;
-    background: var(--c); color: color-mix(in srgb, var(--c), black 78%);
-    font-family: inherit; font-weight: 800; font-size: 16px; transition: filter .15s;
-  }
-  .sheet-confirm:hover { filter: brightness(1.08); }
-  .sheet-cancel {
-    width: 100%; padding: 15px; margin-top: 10px; border-radius: 16px; border: none; cursor: pointer;
-    background: rgba(255,255,255,.06); color: #c4c4d4; font-family: inherit; font-weight: 700; font-size: 16px;
-  }
-  .sheet-cancel:hover { background: rgba(255,255,255,.1); }
+/* net rows */
+.net-row{display:flex;align-items:center;gap:8px;margin-top:6px}
+.net-row:first-of-type{margin-top:0}
+.net-val{font-size:18px;font-weight:800;color:#fff}
+.net-u{font-size:12px;font-weight:600;color:#65657a}
 
-  /* ───── Countdown ───── */
-  .pc-fullscreen {
-    position: absolute; inset: 0; z-index: 90;
-    background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--c), transparent 82%), #07070c 58%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    animation: pcfade .25s ease;
-  }
-  .cd-icon { margin-bottom: 22px; filter: drop-shadow(0 0 22px var(--cg)); }
-  .cd-verb { font-size: 16px; letter-spacing: 1px; color: #b0b0c2; font-weight: 600; }
-  .cd-num { font-size: 124px; font-weight: 800; color: #fff; line-height: 1; margin: 6px 0; }
-  .cd-num:not(:empty) { animation: cdpop .9s ease; }
-  .cd-hint { font-size: 14px; color: #75758c; font-weight: 600; }
-  .cd-cancel {
-    position: absolute; bottom: 54px; padding: 14px 42px; border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05);
-    color: #fff; font-family: inherit; font-weight: 700; font-size: 16px; cursor: pointer;
-  }
-  .cd-cancel:hover { background: rgba(255,255,255,.1); }
+/* sparkline canvas */
+.spark{width:100%;height:36px;margin-top:8px;opacity:.8}
 
-  .pc-black {
-    position: absolute; inset: 0; z-index: 95; background: #000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
-    animation: pcfade .4s ease;
-  }
-  .black-hint { font-size: 12px; letter-spacing: 2.5px; color: #45454f; text-transform: uppercase; font-weight: 600; }
+/* vram health */
+.vram-health{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:600}
+.vram-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
-  /* ───── Settings ───── */
-  .settings-overlay { align-items: stretch; justify-content: flex-end; background: rgba(0,0,0,.45); }
-  .settings-panel {
-    width: 100%; height: 100%; background: #0b0b13; display: flex; flex-direction: column;
-    animation: slidein .32s cubic-bezier(.2,.85,.2,1);
-  }
-  .settings-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 60px 18px 16px; font-size: 18px; font-weight: 800; color: #fff;
-    border-bottom: 1px solid rgba(255,255,255,.05);
-  }
-  .settings-back {
-    background: rgba(255,255,255,.06); border: none; width: 34px; height: 34px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center; color: #c4c4d4; cursor: pointer;
-    transform: rotate(180deg);
-  }
-  .settings-back:hover { background: rgba(255,255,255,.11); }
-  .settings-body { flex: 1; overflow-y: auto; padding: 16px 16px 44px; }
-  .settings-body::-webkit-scrollbar { width: 0; }
-  .set-group-label { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #62627a; margin: 18px 6px 10px; }
-  .set-group-label:first-child { margin-top: 4px; }
-  .set-card { background: rgba(255,255,255,.022); border: 1px solid rgba(255,255,255,.06); border-radius: 18px; overflow: hidden; }
-  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 16px; border-bottom: 1px solid rgba(255,255,255,.05); }
-  .set-row.last { border-bottom: none; }
-  .set-text { flex: 1; min-width: 0; }
-  .set-label { font-size: 15.5px; font-weight: 600; color: #eaeaf2; }
-  .set-sub { font-size: 12.5px; color: #66667c; margin-top: 3px; line-height: 1.35; }
-  .set-val { font-size: 15px; color: #84849a; font-weight: 500; }
+/* multi-gpu list */
+.gpu-entry + .gpu-entry{margin-top:11px;padding-top:11px;border-top:1px solid rgba(255,255,255,.05)}
 
-  .switch { width: 50px; height: 30px; border-radius: 30px; background: rgba(255,255,255,.13); border: none; position: relative; cursor: pointer; transition: background .2s; flex-shrink: 0; }
-  .switch.on { background: var(--accent); }
-  .knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: left .2s cubic-bezier(.2,.8,.2,1); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
-  .switch.on .knob { left: 23px; }
+/* action buttons */
+.actions{position:relative;z-index:1;margin-top:24px;display:flex;flex-direction:column;gap:11px}
+.act-row{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:rgba(255,255,255,.016);border:1px solid color-mix(in srgb,var(--c,var(--a)),transparent 62%);
+  border-radius:18px;padding:18px;cursor:pointer;color:#fff;font-family:inherit;
+  transition:background .18s,border-color .18s,box-shadow .18s,transform .12s;-webkit-tap-highlight-color:transparent}
+.act:hover{background:color-mix(in srgb,var(--c,var(--a)),transparent 90%);
+  border-color:color-mix(in srgb,var(--c,var(--a)),transparent 40%);box-shadow:0 0 26px -10px var(--cg,var(--ag))}
+.act:active{transform:scale(.975)}
+.act-big{padding:26px 18px}
+.act-label{font-size:15px;font-weight:700}
+.act-big .act-label{font-size:18px}
 
-  .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-  .color-btn { width: 48px; height: 48px; border-radius: 12px; border: 2px solid transparent; cursor: pointer; transition: .2s; }
-  .color-btn.active { border-color: #fff; box-shadow: 0 0 12px rgba(255,255,255,.3); }
-  .color-btn:hover { transform: scale(1.05); }
+/* overlay */
+.overlay{position:absolute;inset:0;z-index:80;background:rgba(4,4,8,.6);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  display:none;align-items:flex-end;justify-content:center;animation:fade .2s ease}
+.overlay.open{display:flex}
 
-  .set-foot { text-align: center; font-size: 12px; color: #45454f; margin-top: 22px; font-weight: 500; }
+/* sheet */
+.sheet{width:100%;background:#13131c;border:1px solid rgba(255,255,255,.08);
+  border-bottom:none;border-radius:28px 28px 0 0;padding:12px 22px 38px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  animation:sheet .3s cubic-bezier(.2,.9,.2,1)}
+.grip{width:38px;height:5px;border-radius:5px;background:rgba(255,255,255,.15);margin-bottom:18px}
+.sh-icon{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--c),transparent 86%);
+  border:1px solid color-mix(in srgb,var(--c),transparent 56%);
+  box-shadow:0 0 28px -8px var(--cg);margin-bottom:14px}
+.sh-title{font-size:21px;font-weight:800;color:#fff;margin:0 0 8px}
+.sh-msg{font-size:14px;line-height:1.5;color:#8a8a9e;margin:0 0 22px;max-width:280px}
+.sh-ok{width:100%;padding:15px;border-radius:15px;border:none;cursor:pointer;
+  background:var(--c);color:color-mix(in srgb,var(--c),black 78%);
+  font-family:inherit;font-weight:800;font-size:16px;transition:filter .15s}
+.sh-ok:hover{filter:brightness(1.1)}
+.sh-cancel{width:100%;padding:14px;margin-top:9px;border-radius:15px;border:none;cursor:pointer;
+  background:rgba(255,255,255,.06);color:#bbbbd0;font-family:inherit;font-weight:700;font-size:16px}
+.sh-cancel:hover{background:rgba(255,255,255,.1)}
 
-  .pulse-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; animation: pring 2.2s ease-out infinite; }
+/* countdown */
+.cd{position:absolute;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;
+  justify-content:center;animation:fade .25s ease;
+  background:radial-gradient(circle at 50% 38%,color-mix(in srgb,var(--c),transparent 82%),#07070c 58%)}
+.cd.open{display:flex}
+.cd-icon{margin-bottom:20px;filter:drop-shadow(0 0 20px var(--cg))}
+.cd-verb{font-size:15px;letter-spacing:1px;color:#a8a8c0;font-weight:600}
+.cd-n{font-size:118px;font-weight:800;color:#fff;line-height:1;margin:4px 0}
+.cd-hint{font-size:13px;color:#65657a;font-weight:600}
+.cd-stop{position:absolute;bottom:50px;padding:13px 40px;border-radius:13px;
+  border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.05);
+  color:#fff;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.cd-stop:hover{background:rgba(255,255,255,.1)}
 
-  /* ───── Keyframes ───── */
-  @keyframes pcblink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-  @keyframes pcfade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes pcsheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
-  @keyframes cdpop { 0% { transform: scale(.5); opacity: 0; } 35% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
-  @keyframes pring { 0% { transform: scale(.78); opacity: .65; } 100% { transform: scale(1.5); opacity: 0; } }
+/* settings */
+.set-overlay{align-items:stretch;background:rgba(0,0,0,.4)}
+.set-panel{width:100%;height:100%;background:#0b0b13;display:flex;flex-direction:column;animation:slidein .3s cubic-bezier(.2,.85,.2,1)}
+.set-head{display:flex;align-items:center;justify-content:space-between;
+  padding:56px 16px 14px;font-size:17px;font-weight:800;color:#fff;
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.set-back{background:rgba(255,255,255,.06);border:none;width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:#c0c0d4;cursor:pointer;transform:rotate(180deg)}
+.set-back:hover{background:rgba(255,255,255,.1)}
+.set-body{flex:1;overflow-y:auto;padding:14px 14px 48px}
+.set-body::-webkit-scrollbar{width:0}
+.grp-lbl{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:#55556a;margin:16px 4px 8px}
+.grp-lbl:first-child{margin-top:2px}
+.grp-card{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 14px;border-bottom:1px solid rgba(255,255,255,.045)}
+.set-row.last{border-bottom:none}
+.set-lbl{font-size:15px;font-weight:600;color:#e0e0f0}
+.set-sub{font-size:12px;color:#55556a;margin-top:2px;line-height:1.3}
+.set-val{font-size:14px;color:#75758c;font-weight:500}
+.sw{width:48px;height:28px;border-radius:28px;background:rgba(255,255,255,.12);border:none;
+  position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.sw.on{background:var(--a)}
+.knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+  background:#fff;transition:left .18s cubic-bezier(.2,.8,.2,1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.sw.on .knob{left:23px}
+.colors{display:flex;gap:8px;margin-top:6px}
+.cclr{width:30px;height:30px;border-radius:9px;border:2px solid transparent;cursor:pointer;transition:.2s}
+.cclr.on{border-color:#fff;box-shadow:0 0 10px rgba(255,255,255,.25)}
+.set-foot{text-align:center;font-size:11px;color:#38384a;margin-top:20px;font-weight:500}
 
-  @media (prefers-reduced-motion: reduce) {
-    .pc-overlay, .sheet, .pc-fullscreen, .pc-black, .settings-panel, .cd-num { animation: none !important; }
-    .pc-dot.live, .pulse-ring { animation-duration: 1.2s !important; }
-  }
-
-  /* Power button */
-  .power-btn {
-    width: 132px; height: 132px; border-radius: 50%; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    position: relative; -webkit-tap-highlight-color: transparent;
-    transition: transform .25s cubic-bezier(.2,.8,.2,1);
-  }
-  .power-btn:active { transform: scale(0.94); }
-  .power-ring {
-    position: absolute; inset: 0; border-radius: 50%;
-    border: 2.5px solid var(--accent);
-    box-shadow: 0 0 44px -6px var(--accent-glow), 0 0 0 1px color-mix(in srgb, var(--accent), transparent 70%);
-  }
-  .power-icon {
-    position: relative; color: var(--accent-bright);
-    filter: drop-shadow(0 0 8px var(--accent-glow));
-  }
-
-  svg { display: block; }
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes slidein{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes pulse-bg{0%,100%{opacity:1}50%{opacity:.6}}
+svg{display:block}
 </style>
 </head>
 <body>
-<div class="pc-root">
-  <div class="pc-scroll">
-    <div class="pc-aura"></div>
+<div class="root">
+<div class="scroll">
+  <div class="aura"></div>
 
-    <header class="pc-hero">
-      <div class="power-btn" id="powerBtn">
-        <div class="power-ring"></div>
-        <div class="power-icon">
-          <svg width="45" height="45" viewBox="0 0 24 24" fill="none">
-            <path d="M12 3.2v8.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-            <path d="M6.3 6.6a8 8 0 1 0 11.4 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-          </svg>
-        </div>
+  <!-- Hero -->
+  <header class="hero">
+    <div class="pwr-wrap" id="pwrBtn">
+      <div class="pwr-ring"></div>
+      <div class="pwr-icon">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none">
+          <path d="M12 3v8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M6.3 6.6a8 8 0 1 0 11.4 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
       </div>
-      <h1 class="pc-title">Power Control</h1>
-      <div class="pc-device" id="deviceName">Loading...</div>
-    </header>
+    </div>
+    <h1 class="pc-title">Power Control</h1>
+    <div class="pc-device" id="devName">—</div>
+  </header>
 
-    <section class="pc-section">
-      <div class="pc-section-head">
-        <span class="pc-section-label">Live Stats</span>
-        <div class="pc-section-tools">
-          <span class="pc-dot live"></span>
-          <button class="pc-gear" id="settingsBtn" aria-label="Settings">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3.1" stroke="currentColor" stroke-width="1.7" />
-              <path d="M12 2.6v2.3M12 19.1v2.3M21.4 12h-2.3M4.9 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6 17 17M7 7 5.4 5.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div class="pc-grid">
-        <div class="stat-card">
-          <div class="stat-head">
-            <span class="stat-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.7" />
-                <path d="M10 2.5v3M14 2.5v3M10 18.5v3M14 18.5v3M2.5 10h3M2.5 14h3M18.5 10h3M18.5 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-              </svg>
-            </span>
-            <span class="stat-label">CPU</span>
-          </div>
-          <div class="stat-value"><span id="cpuVal">0</span><span class="stat-unit">%</span></div>
-          <div class="bar-track"><div class="bar-fill" id="cpuBar" style="width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-bright))"></div></div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-head">
-            <span class="stat-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <rect x="4" y="6" width="16" height="12" rx="2.4" stroke="currentColor" stroke-width="1.7" />
-                <path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-              </svg>
-            </span>
-            <span class="stat-label">RAM</span>
-          </div>
-          <div class="stat-value"><span id="ramVal">0</span><span class="stat-unit">%</span></div>
-          <div class="bar-track"><div class="bar-fill" id="ramBar" style="width: 0%; background: linear-gradient(90deg, #3b82f6, #60a5fa)"></div></div>
-          <div class="stat-sub" id="ramSub">0 / 16 GB</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-head">
-            <span class="stat-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="8.4" stroke="currentColor" stroke-width="1.7" />
-                <path d="M12 7.6V12l3 1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <span class="stat-label">Uptime</span>
-          </div>
-          <div class="stat-value accent-green" style="font-size: 25px; white-space: nowrap;" id="uptimeVal">0d 00h 00m</div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-head">
-            <span class="stat-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M2.5 9.2a13 13 0 0 1 19 0M5.6 12.4a8.6 8.6 0 0 1 12.8 0M8.8 15.6a4.2 4.2 0 0 1 6.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-                <circle cx="12" cy="19" r="1.4" fill="currentColor" />
-              </svg>
-            </span>
-            <span class="stat-label">Network</span>
-          </div>
-          <div class="net-row">
-            <span class="net-ico" style="color: #5aa6f5">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                <path d="M12 4v15M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <span class="net-val"><span id="netDownVal">0</span> <span class="net-unit">KB/s</span></span>
-          </div>
-          <div class="net-row">
-            <span class="net-ico" style="color: var(--accent-bright)">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                <path d="M12 20V5M6 11l6-6 6 6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <span class="net-val"><span id="netUpVal">0</span> <span class="net-unit">KB/s</span></span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="pc-actions">
-      <button class="act-btn act-big" data-action="shutdown" style="--c: #f4685f; --cg: rgba(244,104,95,.32)">
-        <span style="color: #f4685f">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-            <path d="M12 3.2v8.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-            <path d="M6.3 6.6a8 8 0 1 0 11.4 0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-          </svg>
-        </span>
-        <span class="act-label">Shut Down</span>
-      </button>
-      <div class="pc-action-row">
-        <button class="act-btn" data-action="restart" style="--c: #f5b53f; --cg: rgba(245,181,63,.30)">
-          <span style="color: #f5b53f">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M20 5.5v4.2h-4.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M19.2 9.5A7.6 7.6 0 1 0 20.4 14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-            </svg>
-          </span>
-          <span class="act-label">Restart</span>
-        </button>
-        <button class="act-btn" data-action="sleep" style="--c: #5aa6f5; --cg: rgba(90,166,245,.28)">
-          <span style="color: #5aa6f5">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4Z" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </span>
-          <span class="act-label">Sleep</span>
-        </button>
-      </div>
-    </section>
-
-    <div style="height: 28px;"></div>
+  <!-- Throttle alert (hidden by default) -->
+  <div class="alert" id="alertThrottle" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2L2 20h20L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M12 9v5M12 17v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span id="alertText">Thermal throttling detected</span>
   </div>
 
-  <!-- Confirm sheet -->
-  <div class="pc-overlay" id="confirmOverlay" style="display: none;">
-    <div class="sheet" id="confirmSheet">
-      <div class="sheet-grip"></div>
-      <div class="sheet-icon" id="confirmIcon"></div>
-      <h2 class="sheet-title" id="confirmTitle"></h2>
-      <p class="sheet-msg" id="confirmMsg"></p>
-      <button class="sheet-confirm" id="confirmBtn">Confirm</button>
-      <button class="sheet-cancel" id="cancelBtn">Cancel</button>
+  <!-- ── CPU ─── -->
+  <div class="sec">
+    <div class="sec-head">
+      <span class="sec-label">Processor</span>
+      <div class="sec-tools">
+        <span class="dot live" id="liveDot"></span>
+        <button class="gear-btn" id="gearBtn">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M12 2v2.5M12 19.5V22M22 12h-2.5M4.5 12H2M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8M19.1 19.1l-1.8-1.8M6.7 6.7L4.9 4.9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M10 2.5v3M14 2.5v3M10 18.5v3M14 18.5v3M2.5 10h3M2.5 14h3M18.5 10h3M18.5 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+          <span class="card-label">CPU Load</span>
+        </div>
+        <div class="big"><span id="cpuVal">—</span><span class="unit">%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="cpuBar" style="width:0%;background:linear-gradient(90deg,var(--a),var(--ab))"></div></div>
+        <canvas class="spark" id="cpuSpark" height="36"></canvas>
+        <div class="sub" id="cpuName" style="margin-top:4px"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="card-label">CPU Temp</span>
+        </div>
+        <div class="big"><span id="cpuTempVal">—</span><span class="unit">°C</span></div>
+        <canvas class="spark" id="cpuTempSpark" height="36"></canvas>
+        <div id="cpuTempBadge" class="temp-badge ok" style="display:none">
+          <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="currentColor"/></svg>
+          <span id="cpuTempStatus">Normal</span>
+        </div>
+        <div id="cpuThrottleBadge" class="throttle-badge" style="display:none">⚡ Throttling</div>
+      </div>
     </div>
   </div>
 
-  <!-- Countdown -->
-  <div class="pc-fullscreen" id="countdownScreen" style="display: none;">
-    <div class="cd-icon" id="countdownIcon"></div>
-    <div class="cd-verb" id="countdownVerb"></div>
-    <div class="cd-num" id="countdownNum"></div>
-    <div class="cd-hint" id="countdownHint"></div>
-    <button class="cd-cancel" id="cancelCountdownBtn">Cancel</button>
+  <!-- ── RAM ─── -->
+  <div class="sec">
+    <div class="sec-head"><span class="sec-label">Memory</span></div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+          <span class="card-label">RAM</span>
+        </div>
+        <div class="big"><span id="ramVal">—</span><span class="unit">%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="ramBar" style="width:0%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+        <div class="sub" id="ramSub">— / — GB</div>
+        <canvas class="spark" id="ramSpark" height="36"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M7 8h10M7 12h6M7 16h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+          <span class="card-label">Swap / Page</span>
+        </div>
+        <div class="big"><span id="swapVal">—</span><span class="unit">%</span></div>
+        <div class="bar-track"><div class="bar-fill" id="swapBar" style="width:0%;background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div></div>
+        <div class="sub" id="swapSub">— / — MB</div>
+        <canvas class="spark" id="swapSpark" height="36"></canvas>
+      </div>
+    </div>
   </div>
 
-  <!-- Settings panel -->
-  <div class="pc-overlay settings-overlay" id="settingsOverlay" style="display: none;">
-    <div class="settings-panel">
-      <div class="settings-head">
-        <button class="settings-back" id="settingsBackBtn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <span>Settings</span>
-        <span style="width: 34px;"></span>
-      </div>
-      <div class="settings-body">
-        <div class="set-group-label">Appearance</div>
-        <div class="set-card">
-          <div class="set-row last">
-            <div class="set-text"><div class="set-label">Accent Color</div></div>
-            <div class="color-grid">
-              <button class="color-btn active" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
-              <button class="color-btn" data-color="#3b82f6" style="background: #3b82f6;"></button>
-              <button class="color-btn" data-color="#10b981" style="background: #10b981;"></button>
-              <button class="color-btn" data-color="#f5b53f" style="background: #f5b53f;"></button>
-            </div>
-          </div>
-        </div>
+  <!-- ── GPU ─── -->
+  <div class="sec" id="gpuSec">
+    <div class="sec-head"><span class="sec-label">Graphics</span><span class="sec-tools"><span id="gpuVendorBadge" style="font-size:11px;font-weight:700;color:#55556a;letter-spacing:1px"></span></span></div>
+    <div id="gpuCards"></div>
+  </div>
 
-        <div class="set-group-label">Power</div>
-        <div class="set-card">
-          <div class="set-row">
-            <div class="set-text"><div class="set-label">Confirm before action</div><div class="set-sub">Ask before shut down, restart, etc.</div></div>
-            <button class="switch on" id="confirmSwitch" data-key="confirm" onclick="toggleSetting(this)"><span class="knob"></span></button>
-          </div>
-          <div class="set-row last">
-            <div class="set-text"><div class="set-label">Auto-refresh stats</div><div class="set-sub">Live update every 2 seconds</div></div>
-            <button class="switch on" id="liveSwitch" data-key="live" onclick="toggleSetting(this)"><span class="knob"></span></button>
-          </div>
-        </div>
-
-        <div class="set-group-label">Device</div>
-        <div class="set-card">
-          <div class="set-row">
-            <div class="set-label">Name</div>
-            <div class="set-val" id="deviceNameInfo">-</div>
-          </div>
-          <div class="set-row last">
-            <div class="set-label">Status</div>
-            <div class="set-val">Connected</div>
-          </div>
-        </div>
-        <div class="set-foot">Power Control · connected via Internet</div>
+  <!-- ── Network ─── -->
+  <div class="sec">
+    <div class="sec-head"><span class="sec-label">Network</span></div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2.5 9.2a13 13 0 0 1 19 0M5.6 12.4a8.6 8.6 0 0 1 12.8 0M8.8 15.6a4.2 4.2 0 0 1 6.4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="19" r="1.4" fill="currentColor"/></svg></span>
+        <span class="card-label">Live Bandwidth</span>
       </div>
+      <div style="display:flex;gap:24px">
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 4v15M6 13l6 6 6-6" stroke="#5aa6f5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="net-val"><span id="netDn">0</span></span>
+            <span class="net-u">KB/s</span>
+          </div>
+          <div class="sub">Download</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 20V5M6 11l6-6 6 6" stroke="var(--ab)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="net-val"><span id="netUp">0</span></span>
+            <span class="net-u">KB/s</span>
+          </div>
+          <div class="sub">Upload</div>
+        </div>
+        <div>
+          <div class="big" style="font-size:22px"><span id="procsVal">—</span></div>
+          <div class="sub">Processes</div>
+        </div>
+      </div>
+      <canvas class="spark" id="netSpark" height="36"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Power buttons ─── -->
+  <div class="actions">
+    <button class="act act-big" data-cmd="shutdown" style="--c:#f4685f;--cg:rgba(244,104,95,.3)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f4685f" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>
+      <span class="act-label">Shut Down</span>
+    </button>
+    <div class="act-row">
+      <button class="act" data-cmd="restart" style="--c:#f5b53f;--cg:rgba(245,181,63,.3)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f5b53f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5.5v4.2h-4.2"/><path d="M19.2 9.5A7.6 7.6 0 1 0 20.4 14"/></svg>
+        <span class="act-label">Restart</span>
+      </button>
+      <button class="act" data-cmd="sleep" style="--c:#5aa6f5;--cg:rgba(90,166,245,.28)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5aa6f5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4Z"/></svg>
+        <span class="act-label">Sleep</span>
+      </button>
+    </div>
+  </div>
+
+  <div style="height:32px"></div>
+</div><!-- /scroll -->
+
+<!-- Confirm sheet -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet" id="confirmSheet">
+    <div class="grip"></div>
+    <div class="sh-icon" id="shIcon"></div>
+    <h2 class="sh-title" id="shTitle"></h2>
+    <p class="sh-msg" id="shMsg"></p>
+    <button class="sh-ok" id="shOk">Confirm</button>
+    <button class="sh-cancel" id="shCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Countdown -->
+<div class="cd" id="cdScreen">
+  <div class="cd-icon" id="cdIcon"></div>
+  <div class="cd-verb" id="cdVerb"></div>
+  <div class="cd-n" id="cdN"></div>
+  <div class="cd-hint" id="cdHint"></div>
+  <button class="cd-stop" id="cdStop">Cancel</button>
+</div>
+
+<!-- Settings -->
+<div class="overlay set-overlay" id="setOverlay">
+  <div class="set-panel">
+    <div class="set-head">
+      <button class="set-back" id="setBack">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span>Settings</span>
+      <span style="width:32px"></span>
+    </div>
+    <div class="set-body">
+      <div class="grp-lbl">Appearance</div>
+      <div class="grp-card">
+        <div class="set-row last" style="flex-direction:column;align-items:flex-start;gap:10px">
+          <div class="set-lbl">Accent Color</div>
+          <div class="colors" id="colorPicker">
+            <button class="cclr on" data-clr="#8b5cf6" style="background:#8b5cf6"></button>
+            <button class="cclr" data-clr="#3b82f6" style="background:#3b82f6"></button>
+            <button class="cclr" data-clr="#10b981" style="background:#10b981"></button>
+            <button class="cclr" data-clr="#f5b53f" style="background:#f5b53f"></button>
+            <button class="cclr" data-clr="#f4685f" style="background:#f4685f"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp-lbl">Power</div>
+      <div class="grp-card">
+        <div class="set-row">
+          <div><div class="set-lbl">Confirm actions</div><div class="set-sub">Ask before shutdown/restart</div></div>
+          <button class="sw on" data-key="confirm" onclick="toggle(this)"><span class="knob"></span></button>
+        </div>
+        <div class="set-row last">
+          <div><div class="set-lbl">Auto-refresh stats</div><div class="set-sub">Poll every 2 seconds</div></div>
+          <button class="sw on" data-key="live" onclick="toggle(this)"><span class="knob"></span></button>
+        </div>
+      </div>
+
+      <div class="grp-lbl">Device</div>
+      <div class="grp-card">
+        <div class="set-row"><div class="set-lbl">Name</div><div class="set-val" id="setDevName">—</div></div>
+        <div class="set-row"><div class="set-lbl">GPU Driver</div><div class="set-val" id="setGpuVendor">—</div></div>
+        <div class="set-row last"><div class="set-lbl">Connection</div><div class="set-val">Internet</div></div>
+      </div>
+
+      <div class="grp-lbl">About</div>
+      <div class="grp-card">
+        <div class="set-row last">
+          <div class="set-lbl">Unpair this device</div>
+          <button onclick="unpair()" style="background:rgba(244,104,95,.12);border:none;color:#f4685f;font-family:inherit;font-size:13px;font-weight:700;padding:6px 14px;border-radius:9px;cursor:pointer">Unpair</button>
+        </div>
+      </div>
+      <div class="set-foot">Power Control · Real hardware monitoring</div>
     </div>
   </div>
 </div>
 
+</div><!-- /root -->
+
 <script>
-const token = localStorage.getItem('pc_token') || '';
-let settings = JSON.parse(localStorage.getItem('pc_settings') || '{"confirm": true, "live": true, "accent": "#8b5cf6"}');
-let pendingAction = null;
-let countdownActive = false;
+const TOKEN = localStorage.getItem('pc_token') || '';
+let cfg = JSON.parse(localStorage.getItem('pc_cfg') || '{"confirm":true,"live":true,"accent":"#8b5cf6"}');
+let pendingCmd = null, cdInterval = null;
 
-const ACTIONS = {
-  shutdown: { label: 'Shut Down', verb: 'Shutting down', color: '#f4685f', glow: 'rgba(244,104,95,.32)', count: true },
-  restart: { label: 'Restart', verb: 'Restarting', color: '#f5b53f', glow: 'rgba(245,181,63,.30)', count: true },
-  sleep: { label: 'Sleep', verb: 'Going to sleep', color: '#5aa6f5', glow: 'rgba(90,166,245,.28)', count: false },
-};
+// ── History buffers (last 30 samples) ────────────────────────────────────────
+const H = { cpu:[], cpuTemp:[], ram:[], swap:[], netDn:[], netUp:[] };
+const MAX_H = 30;
+function pushH(key, val) { H[key].push(val); if (H[key].length > MAX_H) H[key].shift(); }
 
-function setSetting(key, val) {
-  settings[key] = val;
-  localStorage.setItem('pc_settings', JSON.stringify(settings));
+// ── Accent color ─────────────────────────────────────────────────────────────
+function setAccent(c) {
+  cfg.accent = c;
+  saveCfg();
+  const r = document.documentElement.style;
+  r.setProperty('--a', c);
+  r.setProperty('--ab', c + 'bb');
+  r.setProperty('--ag', c + '46');
+  document.querySelectorAll('.cclr').forEach(b => b.classList.toggle('on', b.dataset.clr === c));
+  // re-draw CPU bar gradient
+  const cb = document.getElementById('cpuBar');
+  if (cb) cb.style.background = `linear-gradient(90deg,${c},${c}bb)`;
 }
 
-function toggleSetting(el) {
-  const key = el.dataset.key;
-  const newVal = !settings[key];
-  el.classList.toggle('on', newVal);
-  setSetting(key, newVal);
+function saveCfg() { localStorage.setItem('pc_cfg', JSON.stringify(cfg)); }
+function toggle(el) { const k = el.dataset.key; cfg[k] = !cfg[k]; el.classList.toggle('on', cfg[k]); saveCfg(); }
+
+// ── Sparkline ─────────────────────────────────────────────────────────────────
+function drawSpark(id, data, color, fillColor) {
+  const cv = document.getElementById(id);
+  if (!cv || !data.length) return;
+  const ctx = cv.getContext('2d');
+  const W = cv.clientWidth || cv.width;
+  const H2 = cv.clientHeight || cv.height;
+  cv.width = W; cv.height = H2;
+  ctx.clearRect(0, 0, W, H2);
+  if (data.length < 2) return;
+  const mn = Math.min(...data), mx = Math.max(...data) || 1;
+  const range = mx - mn || 1;
+  const pts = data.map((v, i) => [i / (data.length - 1) * W, H2 - (v - mn) / range * (H2 - 4) - 2]);
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+  if (fillColor) {
+    ctx.lineTo(W, H2); ctx.lineTo(0, H2); ctx.closePath();
+    ctx.fillStyle = fillColor; ctx.fill();
+  }
 }
 
-function setAccent(color) {
-  setSetting('accent', color);
-  document.documentElement.style.setProperty('--accent', color);
-  document.documentElement.style.setProperty('--accent-bright', color + 'cc');
-  document.documentElement.style.setProperty('--accent-glow', color + '4d');
-  document.querySelectorAll('.color-btn').forEach(b => b.classList.toggle('active', b.dataset.color === color));
+// ── Temp badge helpers ────────────────────────────────────────────────────────
+function tempClass(t) { return t == null ? '' : t < 70 ? 'ok' : t < 85 ? 'warn' : 'hot'; }
+function tempLabel(t) { return t == null ? '' : t < 70 ? 'Normal' : t < 85 ? 'Warm' : 'HOT'; }
+
+// ── GPU card builder ──────────────────────────────────────────────────────────
+function buildGpuCards(gpus) {
+  const el = document.getElementById('gpuCards');
+  if (!gpus || !gpus.length) { el.innerHTML = '<div class="card"><div style="color:#55556a;font-size:13px;padding:4px 0">No GPU data — install NVIDIA drivers for full monitoring.</div></div>'; return; }
+  el.innerHTML = gpus.map((g, i) => {
+    const vramPct = g.vramPct != null ? g.vramPct : null;
+    const vramHealth = vramPct == null ? '' : vramPct < 70 ? 'ok' : vramPct < 88 ? 'warn' : 'hot';
+    const vramHealthLabel = vramPct == null ? 'N/A' : vramPct < 70 ? 'Healthy' : vramPct < 88 ? 'High' : 'Critical';
+    const vramFrag = vramPct != null && vramPct > 85;
+    return `
+    <div class="card gpu-entry" id="gpuCard${i}">
+      <div class="card-head">
+        <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="12.5" r="2" stroke="currentColor" stroke-width="1.7"/><path d="M15 11h4M15 14h3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <span class="card-label">GPU ${gpus.length > 1 ? i : ''}</span>
+        <span class="card-name">${g.name}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div class="big" style="font-size:26px" id="gpu${i}Load">${g.load != null ? g.load + '%' : 'N/A'}</div>
+          <div class="sub">Load</div>
+          ${g.load != null ? `<div class="bar-track"><div class="bar-fill" id="gpu${i}Bar" style="width:${g.load}%;background:linear-gradient(90deg,#ec4899,#f0abfc)"></div></div>` : ''}
+        </div>
+        <div>
+          <div class="big" style="font-size:26px" id="gpu${i}Temp">${g.temp != null ? g.temp + '°C' : 'N/A'}</div>
+          <div class="sub">Temp</div>
+          ${g.temp != null ? `<div class="temp-badge ${tempClass(g.temp)}" id="gpu${i}TempBadge"><svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>${tempLabel(g.temp)}</div>` : ''}
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+          <span class="card-label">VRAM</span>
+          <span style="font-size:12px;font-weight:600;color:#75758c" id="gpu${i}VramText">${g.vramUsedGB != null ? g.vramUsedGB + ' / ' + g.vramTotalGB + ' GB' : g.vramTotalGB + ' GB total'}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="gpu${i}VramBar" style="width:${vramPct != null ? vramPct : 0}%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+        <div class="vram-health">
+          <div class="vram-dot" style="background:${vramHealth === 'ok' ? '#2dd6b0' : vramHealth === 'warn' ? '#f5b53f' : '#f4685f'}"></div>
+          <span style="font-size:12px;color:#65657a;font-weight:600">VRAM Health: <span style="color:${vramHealth === 'ok' ? '#2dd6b0' : vramHealth === 'warn' ? '#f5b53f' : '#f4685f'}">${vramHealthLabel}</span></span>
+          ${vramFrag ? '<span style="font-size:11px;color:#f4685f;font-weight:600;margin-left:4px">⚠ Fragmentation risk</span>' : ''}
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
+        ${g.clockMhz ? `<div style="font-size:11px;font-weight:600;color:#55556a;background:rgba(255,255,255,.04);padding:3px 8px;border-radius:7px">GPU ${g.clockMhz} MHz</div>` : ''}
+        ${g.memClockMhz ? `<div style="font-size:11px;font-weight:600;color:#55556a;background:rgba(255,255,255,.04);padding:3px 8px;border-radius:7px">MEM ${g.memClockMhz} MHz</div>` : ''}
+        ${g.powerDraw != null ? `<div style="font-size:11px;font-weight:600;color:#55556a;background:rgba(255,255,255,.04);padding:3px 8px;border-radius:7px">${g.powerDraw}W${g.powerLimit ? ' / ' + g.powerLimit + 'W' : ''}</div>` : ''}
+        ${g.throttling ? `<div class="throttle-badge">⚡ Throttling</div>` : ''}
+      </div>
+      <canvas class="spark" id="gpu${i}Spark" height="36" style="margin-top:10px"></canvas>
+    </div>`;
+  }).join('');
 }
 
-// Load settings
-setAccent(settings.accent);
-document.getElementById('confirmSwitch').classList.toggle('on', settings.confirm);
-document.getElementById('liveSwitch').classList.toggle('on', settings.live);
-
-// Fetch real data
-async function loadStats() {
+// ── Stats update ──────────────────────────────────────────────────────────────
+let gpuHistories = {};
+async function fetchStats() {
   try {
-    const r = await fetch('/stats', { headers: { 'X-Token': token } });
-    if (!r.ok) throw new Error('Auth failed');
+    const r = await fetch('/stats', { headers: { 'X-Token': TOKEN } });
+    if (r.status === 403) { localStorage.removeItem('pc_token'); location.href = '/pair'; return; }
+    if (!r.ok) return;
     const s = await r.json();
 
-    document.getElementById('cpuVal').textContent = s.cpu;
-    document.getElementById('cpuBar').style.width = s.cpu + '%';
+    // CPU
+    document.getElementById('cpuVal').textContent = s.cpu ?? '—';
+    document.getElementById('cpuBar').style.width = (s.cpu ?? 0) + '%';
+    if (s.cpuName) document.getElementById('cpuName').textContent = s.cpuName;
+    pushH('cpu', s.cpu ?? 0);
+    drawSpark('cpuSpark', H.cpu, 'var(--a)', 'var(--ag)');
 
-    document.getElementById('ramVal').textContent = s.ram;
-    document.getElementById('ramBar').style.width = s.ram + '%';
-    document.getElementById('ramSub').textContent = (s.ram / 100 * 16).toFixed(1) + ' / 16 GB';
-
-    document.getElementById('netDownVal').textContent = s.netDown.toFixed(1);
-    document.getElementById('netUpVal').textContent = s.netUp.toFixed(1);
-
-    const d = Math.floor(s.uptime / 86400);
-    const h = Math.floor((s.uptime % 86400) / 3600);
-    const m = Math.floor((s.uptime % 3600) / 60);
-    document.getElementById('uptimeVal').textContent = `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
-  } catch (e) {
-    console.error('Stats fetch failed:', e);
-    if (e.message.includes('Auth')) {
-      localStorage.removeItem('pc_token');
-      location.href = '/pair';
+    // CPU Temp
+    if (s.cpuTemp != null) {
+      document.getElementById('cpuTempVal').textContent = s.cpuTemp;
+      const b = document.getElementById('cpuTempBadge');
+      b.style.display = 'inline-flex';
+      b.className = 'temp-badge ' + tempClass(s.cpuTemp);
+      document.getElementById('cpuTempStatus').textContent = tempLabel(s.cpuTemp);
+      pushH('cpuTemp', s.cpuTemp);
+      drawSpark('cpuTempSpark', H.cpuTemp,
+        s.cpuTemp < 70 ? '#2dd6b0' : s.cpuTemp < 85 ? '#f5b53f' : '#f4685f',
+        s.cpuTemp < 70 ? '#2dd6b020' : s.cpuTemp < 85 ? '#f5b53f20' : '#f4685f20');
     }
-  }
+    const ctb = document.getElementById('cpuThrottleBadge');
+    ctb.style.display = s.cpuThrottle ? 'inline-flex' : 'none';
+
+    // RAM
+    document.getElementById('ramVal').textContent = s.ram ?? '—';
+    document.getElementById('ramBar').style.width = (s.ram ?? 0) + '%';
+    if (s.ramUsedGB != null) document.getElementById('ramSub').textContent = s.ramUsedGB + ' / ' + s.ramTotalGB + ' GB';
+    pushH('ram', s.ram ?? 0);
+    drawSpark('ramSpark', H.ram, '#60a5fa', '#3b82f620');
+
+    // Swap
+    if (s.swapPct != null) {
+      document.getElementById('swapVal').textContent = s.swapPct;
+      document.getElementById('swapBar').style.width = s.swapPct + '%';
+      document.getElementById('swapSub').textContent = s.swapUsedMB + ' / ' + s.swapTotalMB + ' MB';
+      pushH('swap', s.swapPct);
+      drawSpark('swapSpark', H.swap, '#a78bfa', '#8b5cf620');
+    }
+
+    // GPU
+    if (s.gpus && s.gpus.length) {
+      document.getElementById('gpuVendorBadge').textContent = s.gpuVendor || '';
+      document.getElementById('setGpuVendor').textContent = s.gpuVendor || '—';
+      // Build cards on first load or count change
+      const existing = document.querySelectorAll('.gpu-entry');
+      if (existing.length !== s.gpus.length) buildGpuCards(s.gpus);
+      // Update each GPU card
+      s.gpus.forEach((g, i) => {
+        if (!gpuHistories[i]) gpuHistories[i] = [];
+        gpuHistories[i].push(g.load ?? 0);
+        if (gpuHistories[i].length > MAX_H) gpuHistories[i].shift();
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        const setW = (id, w) => { const el = document.getElementById(id); if (el) el.style.width = w + '%'; };
+        if (g.load != null) { set(`gpu${i}Load`, g.load + '%'); setW(`gpu${i}Bar`, g.load); }
+        if (g.temp != null) {
+          set(`gpu${i}Temp`, g.temp + '°C');
+          const tb = document.getElementById(`gpu${i}TempBadge`);
+          if (tb) { tb.className = 'temp-badge ' + tempClass(g.temp); tb.innerHTML = `<svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>${tempLabel(g.temp)}`; }
+        }
+        if (g.vramPct != null) setW(`gpu${i}VramBar`, g.vramPct);
+        if (g.vramUsedGB != null) set(`gpu${i}VramText`, g.vramUsedGB + ' / ' + g.vramTotalGB + ' GB');
+        drawSpark(`gpu${i}Spark`, gpuHistories[i], '#ec4899', '#ec489920');
+      });
+    }
+
+    // Network
+    document.getElementById('netDn').textContent = (s.netDown ?? 0).toFixed(1);
+    document.getElementById('netUp').textContent = (s.netUp ?? 0).toFixed(1);
+    document.getElementById('procsVal').textContent = s.procs ?? '—';
+    pushH('netDn', s.netDown ?? 0);
+    pushH('netUp', s.netUp ?? 0);
+    const maxNet = Math.max(...H.netDn, ...H.netUp, 1);
+    drawSpark('netSpark', H.netDn.map((v, i) => v + (H.netUp[i] || 0)), '#5aa6f5', '#5aa6f520');
+
+    // Throttle alert
+    const al = document.getElementById('alertThrottle');
+    const at = document.getElementById('alertText');
+    if (s.anyThrottle) {
+      const msgs = [];
+      if (s.cpuThrottle) msgs.push('CPU');
+      if (s.gpuThrottle) msgs.push('GPU');
+      al.style.display = 'flex';
+      al.className = 'alert' + (s.cpuTemp > 90 || (s.gpus && s.gpus.some(g => g.temp > 90)) ? ' crit' : '');
+      at.textContent = msgs.join(' + ') + ' thermal throttling detected — check cooling';
+    } else {
+      al.style.display = 'none';
+    }
+
+    // Uptime
+    if (s.uptime) {
+      const d = Math.floor(s.uptime / 86400);
+      const h = Math.floor((s.uptime % 86400) / 3600);
+      const m = Math.floor((s.uptime % 3600) / 60);
+    }
+  } catch (e) { console.error(e); }
 }
 
-// Load device info
 async function loadInfo() {
   try {
-    const r = await fetch('/info', { headers: { 'X-Token': token } });
-    if (!r.ok) throw new Error('Auth failed');
+    const r = await fetch('/info', { headers: { 'X-Token': TOKEN } });
+    if (r.status === 403) { localStorage.removeItem('pc_token'); location.href = '/pair'; return; }
     const d = await r.json();
-    document.getElementById('deviceName').textContent = d.host;
-    document.getElementById('deviceNameInfo').textContent = d.host;
-  } catch (e) {
-    if (e.message.includes('Auth')) {
-      localStorage.removeItem('pc_token');
-      location.href = '/pair';
-    }
-  }
+    document.getElementById('devName').textContent = d.host || '—';
+    document.getElementById('setDevName').textContent = d.host || '—';
+  } catch (e) {}
 }
 
-function showConfirm(action) {
-  const a = ACTIONS[action];
-  const msgs = {
-    shutdown: 'All apps will close and the PC will power off.',
-    restart: 'All apps will close and the PC will restart.',
-    sleep: 'The PC will enter low-power sleep. Press any key to wake.',
-  };
+// ── Confirm / countdown ───────────────────────────────────────────────────────
+const CMDS = {
+  shutdown: { label:'Shut Down', verb:'Shutting down', msg:'All apps will close and the PC will power off.', color:'#f4685f', glow:'rgba(244,104,95,.3)', count:true },
+  restart:  { label:'Restart',   verb:'Restarting',   msg:'All apps will close and the PC will restart.',  color:'#f5b53f', glow:'rgba(245,181,63,.3)', count:true },
+  sleep:    { label:'Sleep',     verb:'Going to sleep', msg:'The PC will enter low-power sleep.',           color:'#5aa6f5', glow:'rgba(90,166,245,.28)', count:false },
+};
 
-  document.getElementById('confirmIcon').innerHTML = `
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="${a.color}" stroke-width="2.4" stroke-linecap="round">
-      ${action === 'sleep' ? '<path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4Z" />' : '<path d="M12 3.2v8.4" /><path d="M6.3 6.6a8 8 0 1 0 11.4 0" />'}
-    </svg>
-  `;
-  document.getElementById('confirmTitle').textContent = a.label + '?';
-  document.getElementById('confirmMsg').textContent = msgs[action];
-  document.getElementById('confirmSheet').style.setProperty('--c', a.color);
-  document.getElementById('confirmSheet').style.setProperty('--cg', a.glow);
-
-  pendingAction = action;
-  document.getElementById('confirmOverlay').style.display = 'flex';
+function showConfirm(cmd) {
+  const c = CMDS[cmd]; pendingCmd = cmd;
+  document.getElementById('shIcon').style.setProperty('--c', c.color);
+  document.getElementById('shIcon').style.setProperty('--cg', c.glow);
+  document.getElementById('shIcon').innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${c.color}" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>`;
+  document.getElementById('confirmSheet').style.setProperty('--c', c.color);
+  document.getElementById('confirmSheet').style.setProperty('--cg', c.glow);
+  document.getElementById('shTitle').textContent = c.label + '?';
+  document.getElementById('shMsg').textContent = c.msg;
+  document.getElementById('confirmOverlay').classList.add('open');
 }
+function hideConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); pendingCmd = null; }
 
-function hideConfirm() {
-  document.getElementById('confirmOverlay').style.display = 'none';
-  pendingAction = null;
-}
-
-async function runAction(action) {
-  hideConfirm();
-  const a = ACTIONS[action];
-
-  if (a.count) {
-    countdownActive = true;
-    let n = 5;
-    document.getElementById('countdownIcon').innerHTML = `
-      <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="${a.color}" stroke-width="2.4" stroke-linecap="round">
-        <path d="M12 3.2v8.4" /><path d="M6.3 6.6a8 8 0 1 0 11.4 0" />
-      </svg>
-    `;
-    document.getElementById('countdownVerb').textContent = a.verb + '…';
-    document.getElementById('countdownHint').textContent = `in ${n} seconds`;
-    document.getElementById('countdownScreen').style.setProperty('--c', a.color);
-    document.getElementById('countdownScreen').style.setProperty('--cg', a.glow);
-    document.getElementById('countdownScreen').style.display = 'flex';
-
-    const tick = setInterval(() => {
-      n--;
-      document.getElementById('countdownNum').textContent = n > 0 ? n : '';
-      document.getElementById('countdownHint').textContent = n > 0 ? `in ${n} second${n === 1 ? '' : 's'}` : 'Goodbye';
-      if (n <= 0) {
-        clearInterval(tick);
-        sendCommand(action);
-        setTimeout(() => { document.getElementById('countdownScreen').style.display = 'none'; countdownActive = false; }, 1500);
-      }
-    }, 1000);
-  } else {
-    sendCommand(action);
-  }
-}
-
-async function sendCommand(cmd) {
+async function sendCmd(cmd) {
   try {
     const r = await fetch('/action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Token': token },
+      headers: { 'Content-Type':'application/x-www-form-urlencoded', 'X-Token': TOKEN },
       body: 'cmd=' + cmd
     });
-    if (r.status === 403) {
-      localStorage.removeItem('pc_token');
-      location.href = '/pair';
-    }
-  } catch (e) {
-    console.error('Command failed:', e);
+    if (r.status === 403) { localStorage.removeItem('pc_token'); location.href = '/pair'; }
+  } catch (e) {}
+}
+
+function runCmd(cmd) {
+  hideConfirm();
+  const c = CMDS[cmd];
+  if (c.count) {
+    let n = 5;
+    const cd = document.getElementById('cdScreen');
+    cd.style.setProperty('--c', c.color); cd.style.setProperty('--cg', c.glow);
+    document.getElementById('cdIcon').innerHTML = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="${c.color}" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.6a8 8 0 1 0 11.4 0"/></svg>`;
+    document.getElementById('cdVerb').textContent = c.verb + '…';
+    document.getElementById('cdN').textContent = n;
+    document.getElementById('cdHint').textContent = `in ${n} seconds`;
+    cd.classList.add('open');
+    cdInterval = setInterval(() => {
+      n--;
+      document.getElementById('cdN').textContent = n > 0 ? n : '';
+      document.getElementById('cdHint').textContent = n > 0 ? `in ${n} second${n===1?'':'s'}` : 'Goodbye';
+      if (n <= 0) { clearInterval(cdInterval); sendCmd(cmd); setTimeout(() => cd.classList.remove('open'), 1500); }
+    }, 1000);
+  } else {
+    sendCmd(cmd);
   }
 }
 
-// Event listeners
-document.querySelectorAll('[data-action]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const action = btn.dataset.action;
-    if (settings.confirm) showConfirm(action);
-    else runAction(action);
-  });
+function unpair() {
+  if (!confirm('Unpair this device?')) return;
+  fetch('/unpair', { method:'POST', headers:{'X-Token':TOKEN} }).then(() => { localStorage.removeItem('pc_token'); location.href='/pair'; });
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+document.querySelectorAll('[data-cmd]').forEach(b => b.addEventListener('click', () => {
+  const cmd = b.dataset.cmd;
+  if (cfg.confirm) showConfirm(cmd); else runCmd(cmd);
+}));
+document.getElementById('pwrBtn').addEventListener('click', () => {
+  if (cfg.confirm) showConfirm('shutdown'); else runCmd('shutdown');
 });
+document.getElementById('shOk').addEventListener('click', () => { if (pendingCmd) runCmd(pendingCmd); });
+document.getElementById('shCancel').addEventListener('click', hideConfirm);
+document.getElementById('confirmOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) hideConfirm(); });
+document.getElementById('cdStop').addEventListener('click', () => { clearInterval(cdInterval); document.getElementById('cdScreen').classList.remove('open'); });
+document.getElementById('gearBtn').addEventListener('click', () => document.getElementById('setOverlay').classList.add('open'));
+document.getElementById('setBack').addEventListener('click', () => document.getElementById('setOverlay').classList.remove('open'));
+document.getElementById('setOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) document.getElementById('setOverlay').classList.remove('open'); });
+document.querySelectorAll('.cclr').forEach(b => b.addEventListener('click', () => setAccent(b.dataset.clr)));
 
-document.getElementById('confirmBtn').addEventListener('click', () => {
-  if (pendingAction) runAction(pendingAction);
-});
-
-document.getElementById('cancelBtn').addEventListener('click', hideConfirm);
-
-document.getElementById('cancelCountdownBtn').addEventListener('click', () => {
-  countdownActive = false;
-  document.getElementById('countdownScreen').style.display = 'none';
-});
-
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  document.getElementById('settingsOverlay').style.display = 'flex';
-});
-
-document.getElementById('settingsBackBtn').addEventListener('click', () => {
-  document.getElementById('settingsOverlay').style.display = 'none';
-});
-
-document.getElementById('settingsOverlay').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) document.getElementById('settingsOverlay').style.display = 'none';
-});
-
-document.getElementById('confirmOverlay').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) hideConfirm();
-});
-
-document.querySelectorAll('.color-btn').forEach(btn => {
-  btn.addEventListener('click', () => setAccent(btn.dataset.color));
-});
-
-document.getElementById('powerBtn').addEventListener('click', () => {
-  if (settings.confirm) showConfirm('shutdown');
-  else runAction('shutdown');
-});
-
-// Init
+// ── Init ──────────────────────────────────────────────────────────────────────
+setAccent(cfg.accent || '#8b5cf6');
+document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', cfg[s.dataset.key] !== false));
+buildGpuCards(null);
 loadInfo();
-loadStats();
-if (settings.live) setInterval(loadStats, 2000);
+fetchStats();
+if (cfg.live !== false) setInterval(fetchStats, 2000);
 
-// PWA
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
 </body>
 </html>
