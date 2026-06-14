@@ -97,7 +97,9 @@ function Get-SystemStats {
         $s.cpuCores    = $first.NumberOfCores
         $s.cpuClockMhz = $first.CurrentClockSpeed
         $s.cpuMaxMhz   = $first.MaxClockSpeed
-        $s.cpuThrottle = ($s.cpuClockMhz -lt [int]($s.cpuMaxMhz * 0.88))
+        # Only flag throttle when CPU is actually under load — SpeedStep/power-saving
+        # legitimately drops clocks at idle, which would be a false positive otherwise
+        $s.cpuThrottle = ($s.cpu -gt 20 -and $s.cpuClockMhz -lt [int]($s.cpuMaxMhz * 0.88))
     } catch { $s.cpu = 0 }
 
     # ── CPU temperature ───────────────────────────────────────────────────────
@@ -178,7 +180,7 @@ function Get-SystemStats {
             }
             $s.gpus       = $gpus
             $s.gpuVendor  = 'NVIDIA'
-            $s.gpuThrottle = ($gpus | Where-Object { $_.throttling }) -ne $null
+            $s.gpuThrottle = (@($gpus | Where-Object { $_.throttling }).Count -gt 0)
         } catch {}
     }
 

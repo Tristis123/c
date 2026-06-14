@@ -435,8 +435,10 @@ svg{display:block}
 
 <script>
 const TOKEN = localStorage.getItem('pc_token') || '';
+// Redirect immediately if no token — don't wait for first failed fetch
+if (!TOKEN) { location.href = '/pair'; }
 let cfg = JSON.parse(localStorage.getItem('pc_cfg') || '{"confirm":true,"live":true,"accent":"#8b5cf6"}');
-let pendingCmd = null, cdInterval = null;
+let pendingCmd = null, cdInterval = null, statsInterval = null;
 
 // ── History buffers (last 30 samples) ────────────────────────────────────────
 const H = { cpu:[], cpuTemp:[], ram:[], swap:[], netDn:[], netUp:[] };
@@ -458,7 +460,16 @@ function setAccent(c) {
 }
 
 function saveCfg() { localStorage.setItem('pc_cfg', JSON.stringify(cfg)); }
-function toggle(el) { const k = el.dataset.key; cfg[k] = !cfg[k]; el.classList.toggle('on', cfg[k]); saveCfg(); }
+function toggle(el) {
+  const k = el.dataset.key;
+  cfg[k] = !cfg[k];
+  el.classList.toggle('on', cfg[k]);
+  saveCfg();
+  if (k === 'live') {
+    if (cfg.live && !statsInterval) { statsInterval = setInterval(fetchStats, 2000); }
+    else if (!cfg.live && statsInterval) { clearInterval(statsInterval); statsInterval = null; }
+  }
+}
 
 // ── Sparkline ─────────────────────────────────────────────────────────────────
 function drawSpark(id, data, color, fillColor) {
@@ -740,7 +751,7 @@ document.querySelectorAll('.sw').forEach(s => s.classList.toggle('on', cfg[s.dat
 buildGpuCards(null);
 loadInfo();
 fetchStats();
-if (cfg.live !== false) setInterval(fetchStats, 2000);
+if (cfg.live !== false) statsInterval = setInterval(fetchStats, 2000);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
