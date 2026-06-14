@@ -100,34 +100,22 @@ function Get-SystemStats {
         $s.cpuThrottle = ($s.cpuClockMhz -lt [int]($s.cpuMaxMhz * 0.88))
     } catch { $s.cpu = 0 }
 
-    # ── CPU temperature ──────────────────────────────────────────────────────
-    # Try LibreHardwareMonitor WMI first (most reliable, needs LHWM running)
+    # ── CPU temperature ───────────────────────────────────────────────────────
+    # Windows does not expose CPU core temps via safe built-in APIs.
+    # All tools that read them (HWiNFO, LHWM, etc.) require a kernel driver.
+    # We try ACPI thermal zones as a best-effort — works on a minority of boards.
     try {
-        $lhwm = Get-WmiObject -Namespace root/LibreHardwareMonitor -Class Sensor -ErrorAction SilentlyContinue |
-                Where-Object { $_.SensorType -eq 'Temperature' -and $_.Name -match 'CPU|Core|Package' }
-        if ($lhwm) {
-            $temps = @($lhwm | ForEach-Object { [math]::Round($_.Value) })
-            $s.cpuTemp  = ($temps | Measure-Object -Maximum).Maximum
-            $s.cpuTemps = $temps
-            $s.cpuTempSrc = 'LHWM'
+        $tzs = Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue
+        if ($tzs) {
+            $temps = @($tzs | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) } |
+                      Where-Object { $_ -gt 0 -and $_ -lt 120 })
+            if ($temps.Count -gt 0) {
+                $s.cpuTemp = ($temps | Measure-Object -Maximum).Maximum
+                $s.cpuTemps = $temps
+            }
         }
     } catch {}
-
-    # Fallback: ACPI thermal zones (works on some boards, often reports package temp)
-    if (-not $s.cpuTemp) {
-        try {
-            $tzs = Get-WmiObject -Namespace root/wmi -Class MSAcpi_ThermalZoneTemperature -ErrorAction SilentlyContinue
-            if ($tzs) {
-                $temps = @($tzs | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) } | Where-Object { $_ -gt 0 -and $_ -lt 120 })
-                if ($temps.Count -gt 0) {
-                    $s.cpuTemp    = ($temps | Measure-Object -Maximum).Maximum
-                    $s.cpuTemps   = $temps
-                    $s.cpuTempSrc = 'ACPI'
-                }
-            }
-        } catch {}
-    }
-    # If neither worked, cpuTemp stays null — UI will show N/A with an install hint
+    # cpuTemp stays $null if unavailable — UI shows "Not available"
 
     # ── RAM + pagefile ────────────────────────────────────────────────────────
     try {

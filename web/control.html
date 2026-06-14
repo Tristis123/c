@@ -569,7 +569,7 @@ async function fetchStats() {
       document.getElementById('cpuTempBadge').style.display = 'inline-flex';
       document.getElementById('cpuTempBadge').className = 'temp-badge ok';
       document.getElementById('cpuTempBadge').style.cssText = 'display:inline-flex;background:rgba(255,255,255,.05);color:#55556a';
-      document.getElementById('cpuTempStatus').textContent = 'Install LibreHardwareMonitor for temps';
+      document.getElementById('cpuTempStatus').textContent = 'Not available on Windows without a driver';
     }
     const ctb = document.getElementById('cpuThrottleBadge');
     ctb.style.display = s.cpuThrottle ? 'inline-flex' : 'none';
